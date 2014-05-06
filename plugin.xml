@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+	<extension point="org.eclipse.ui.popupMenus">
+      	<objectContribution
+            adaptable="true"
+            id="cn.nju.seg.atg.contribution1"
+            objectClass="org.eclipse.cdt.core.model.IFunctionDeclaration">
+         <menu
+               icon="icons/java.ico"
+               id="cn.nju.seg.atg.plugin.popupmenu"
+               label="cn.nju.seg.atg"
+               path="additions">
+            <separator name="AtgGroup">
+            </separator>
+         </menu>
+         <action
+               class="cn.nju.seg.atg.plugin.AtgAction"
+               enablesFor="1"
+               icon="icons/coffee.ico"
+               id="cn.nju.seg.atg.plugin.atgId"
+               label="Generate Test Data"
+               menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
+         </action>
+         <action
+               class="cn.nju.seg.atg.plugin.CfgAction"
+               enablesFor="1"
+               icon="icons/coffee.ico"
+               id="cn.nju.seg.atg.plugin.cfgId"
+               label="Show CFG"
+               menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
+         </action>
+      </objectContribution>
+   </extension>
+   <extension point="org.eclipse.ui.editors.annotationTypes">
+	   <type
+	         markerSeverity="2"
+	         markerType="org.eclipse.core.resources.problemmarker"
+	         name="cn.nju.seg.atg.TextEditor.AtgNode"
+	         super="org.eclipse.ui.workbench.texteditor.info">
+	   </type>
+	</extension>
+	<extension point="org.eclipse.ui.editors.markerAnnotationSpecification"> 
+	   <specification
+	         annotationType="cn.nju.seg.atg.TextEditor.AtgNode"
+	         colorPreferenceKey="hostColorKey"
+	         colorPreferenceValue="51,153, 204"
+	         contributesToHeader="true"
+	         highlightPreferenceKey="hostHightlightKey"
+	         highlightPreferenceValue="true"
+	         icon="icons/node.gif"
+	         includeOnPreferencePage="true"
+	         isGoToNextNavigationTarget="true"
+	         isGoToNextNavigationTargetKey="Host_isOccurrenceGoToNextNavigationTarget"
+	         isGoToPreviousNavigationTarget="true"
+	         isGoToPreviousNavigationTargetKey="Host_isOccurrenceGoToPreviousNavigationTarget"
+	         label="HOST"
+	         overviewRulerPreferenceKey="hostOverviewKey"
+	         overviewRulerPreferenceValue="true"
+	         presentationLayer="4"
+	         quickFixIcon="icons/node.gif"
+	         showInNextPrevDropdownToolbarAction="true"
+	         showInNextPrevDropdownToolbarActionKey="Host_showOccurrenceInNextPrevDropdownToolbarAction"
+	         symbolicIcon="info"
+	         textPreferenceKey="hostTextKey"
+	         textPreferenceValue="true"
+	         textStylePreferenceKey="occurrenceTextStyle"
+	         textStylePreferenceValue="NONE"
+	         verticalRulerPreferenceKey="hostVerticalKey"
+	         verticalRulerPreferenceValue="true">
+	   </specification>
+	</extension>
+ <extension
+       point="org.eclipse.ui.editors">
+    <editor
+          class="cn.nju.seg.atg.plugin.CfgCEditor"
+          default="false"
+          extensions="cfcpp"
+          icon="icons/sample.gif"
+          id="cn.nju.seg.atg.plugin.cfgceditor"
+          name="cfgceditor">
+    </editor>
+ </extension>
+</plugin>
