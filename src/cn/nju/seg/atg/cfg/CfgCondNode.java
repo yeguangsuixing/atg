@@ -18,20 +18,20 @@ public class CfgCondNode extends CfgNode {
 
 	
 	/** 对于条件节点来说，符合条件时的下一个节点 */
-	public CfgNode then;
+	/*default*/ CfgNode then;
 	/** 对于分支节点来说，下一个汇聚节点 */
-	/*default*/ CfgNode merge;
+	public /*default*/ CfgNode merge;
 	/** 条件表达式 */
-	public IASTExpression expression;
+	/*default*/ IASTExpression expression;
 
 	/** 内嵌根节点 */
-	public CfgConstraintNode innerNodeRoot;
+	/*default*/ CfgConstraintUnit innerNodeRoot;
 	
-	protected List<CfgConstraintNode> innerNodeList = new ArrayList<CfgConstraintNode>();
+	protected List<CfgConstraintUnit> innerNodeList = new ArrayList<CfgConstraintUnit>();
 	
 
 	/** 是否处于满足状态 */
-	public boolean satisfied = true;
+	/*default*/ boolean satisfied = true;
 	
 	public CfgCondNode(Type type, IASTExpression expression) {
 		this(type, expression, null);
@@ -42,8 +42,20 @@ public class CfgCondNode extends CfgNode {
 	}
 	
 	/** 获取所有内部节点 */
-	public List<CfgConstraintNode> getAllInnerNodes(){
+	public List<CfgConstraintUnit> getAllInnerNodes(){
 		return this.innerNodeList;
+	}
+	
+	public void setSatisfied(boolean satisfied){
+		this.satisfied = satisfied;
+	}
+	public boolean isThenNode(CfgNode node){
+		return this.then == node;
+	}
+	
+	/** 获取符合条件的节点 */
+	public CfgNode getThen(){
+		return this.then;
 	}
 	
 	/** 处理当前节点的条件表达式，生成逻辑二叉树 */
@@ -51,7 +63,7 @@ public class CfgCondNode extends CfgNode {
 		this.innerNodeRoot = handleExpression(this.expression);
 	}
 	
-	private CfgConstraintNode handleExpression(IASTExpression curExp){
+	private CfgConstraintUnit handleExpression(IASTExpression curExp){
 		//curExp = removeAllUnaryOp(curExp);
 		boolean negative = false;
 		while(curExp instanceof IASTUnaryExpression) {
@@ -65,21 +77,21 @@ public class CfgCondNode extends CfgNode {
 		if(curExp instanceof IASTBinaryExpression){
 			IASTBinaryExpression binExp = (IASTBinaryExpression)curExp;
 			int op = binExp.getOperator();
-			CfgConstraintNode curnode = null;
+			CfgConstraintUnit curnode = null;
 			if(op == IASTBinaryExpression.op_logicalOr){
 				curnode = handleExpression(binExp.getOperand1());
-				curnode.nextOrNode = handleExpression(binExp.getOperand2());
+				curnode.nextOrUnit = handleExpression(binExp.getOperand2());
 				return curnode;
 			}
 			if(op == IASTBinaryExpression.op_logicalAnd){
 				curnode = handleExpression(binExp.getOperand1());
-				curnode.childAndNode = handleExpression(binExp.getOperand2());
+				curnode.childAndUnit = handleExpression(binExp.getOperand2());
 				return curnode;
 			}
 			//其他情况当作一元表达式处理
 		}
 		//如果不是，或者说不存在【逻辑或】和【逻辑与】
-		CfgConstraintNode newnode = new CfgConstraintNode(curExp, negative);
+		CfgConstraintUnit newnode = new CfgConstraintUnit(curExp, negative);
 		innerNodeList.add(newnode);
 		return newnode;
 	}
@@ -118,13 +130,13 @@ public class CfgCondNode extends CfgNode {
 			clearPoints(this.innerNodeRoot);
 		}
 	}
-	private void clearPoints(CfgConstraintNode node){
+	private void clearPoints(CfgConstraintUnit node){
 		node.clearPoints();
-		if(node.nextOrNode != null){
-			clearPoints(node.nextOrNode);
+		if(node.nextOrUnit != null){
+			clearPoints(node.nextOrUnit);
 		}
-		if(node.childAndNode != null){
-			clearPoints(node.childAndNode);
+		if(node.childAndUnit != null){
+			clearPoints(node.childAndUnit);
 		}
 	}
 
@@ -143,16 +155,16 @@ public class CfgCondNode extends CfgNode {
 		}
 	}
 
-	private List<Interval> getEffectiveIntervalList(CfgConstraintNode consnode, 
+	private List<Interval> getEffectiveIntervalList(CfgConstraintUnit consnode, 
 			Interval maxInterval) {
 		List<Interval> curlist = consnode.getEffectiveIntervalList(maxInterval);
-		if(consnode.childAndNode != null){
-			List<Interval> temp = getEffectiveIntervalList(consnode.childAndNode, 
+		if(consnode.childAndUnit != null){
+			List<Interval> temp = getEffectiveIntervalList(consnode.childAndUnit, 
 					maxInterval);
 			curlist = Interval.getIntersection(temp, curlist);
 		}
-		if(consnode.nextOrNode != null){
-			List<Interval> temp = getEffectiveIntervalList(consnode.nextOrNode, 
+		if(consnode.nextOrUnit != null){
+			List<Interval> temp = getEffectiveIntervalList(consnode.nextOrUnit, 
 					maxInterval);
 			curlist =  Interval.getUnion(maxInterval, temp, curlist);
 		}

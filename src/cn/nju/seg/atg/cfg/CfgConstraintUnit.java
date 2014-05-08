@@ -12,35 +12,45 @@ import cn.nju.seg.atg.model.Constraint.CtType;
 import cn.nju.seg.atg.model.Interval;
 import cn.nju.seg.atg.model.Point;
 
-public class CfgConstraintNode implements Comparable<CfgConstraintNode> {
+public class CfgConstraintUnit implements Comparable<CfgConstraintUnit> {
 
 	private static int ID = 0;
 	/** 当前节点的唯一标识 */
 	private int id;
 	/** 当前节点的约束 */
-	public Constraint constraint;
+	/*default*/ Constraint constraint;
 	/** 下一个用||连接的约束条件 */
-	public CfgConstraintNode nextOrNode;
+	/*default*/ CfgConstraintUnit nextOrUnit;
 	/** 第一个用&&连接的约束条件 */
-	public CfgConstraintNode childAndNode;
+	/*default*/ CfgConstraintUnit childAndUnit;
 	/** 当前约束条件对应的坐标点 */
 	private Set<Point> points = new TreeSet<Point>();
 	
 	/** 是否处于满足状态 */
 	private boolean negative = false;
 	
-	private CfgConstraintNode(int id, IASTExpression exp, boolean negative){
+	
+	private CfgConstraintUnit(int id, IASTExpression exp, boolean negative){
 		this.id = id;
 		if(exp == null) return;
 		this.constraint = new Constraint(exp);
 		this.negative = negative;
 	}
 	
-	/** 对于约束节点，我们使用负数id来标识 */
-	public CfgConstraintNode(IASTExpression exp, boolean negative){
+	/** 
+	 * <p>创建一个约束单元</p>
+	 * <p>对于约束单元，我们使用负id来标识</p>
+	 * @param exp 原子约束条件表达式
+	 * @param negative 当前约束单元是否处于满足状态
+	 *  */
+	public CfgConstraintUnit(IASTExpression exp, boolean negative){
 		this(--ID, exp, negative);
 	}
 	
+	/**
+	 * 获取节点的ID
+	 * @return 当前节点的ID(该ID一定小于0)
+	 * */
 	public int getId(){
 		return this.id;
 	}
@@ -70,9 +80,27 @@ public class CfgConstraintNode implements Comparable<CfgConstraintNode> {
 		}
 	}
 	
-	/** 获取点集，用于线性拟合 */
-	public Set<Point> getPointSet(){
-		return this.points;
+	/** 获取当前约束单元的起始偏移量 */
+	public int getOffset(){
+		return this.constraint.getOffset();
+	}
+	
+	/** 获取当前约束单元的长度 */
+	public int getLength(){
+		return this.constraint.getLength();
+	}
+	
+	/** 获取当前约束单元的相减字符串 */
+	public String getValueString(){
+		return this.constraint.toValueString();
+	}
+	
+	/** 
+	 * 添加一个坐标点到当前约束单元的线性拟合函数中
+	 * @param point 当前约束单元经过的坐标点
+	 *  */
+	public void addPoint(Point point){
+		this.points.add(point);
 	}
 	
 	/** 清除所有的坐标信息 */
@@ -160,7 +188,7 @@ public class CfgConstraintNode implements Comparable<CfgConstraintNode> {
 	}
 
 	@Override
-	public int compareTo(CfgConstraintNode o) {
+	public int compareTo(CfgConstraintUnit o) {
 		int t = o.constraint.getOffset();
 		int m = this.constraint.getOffset();
 		return t - m;//越靠前越大

@@ -22,14 +22,6 @@
                label="Generate Test Data"
                menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
          </action>
-         <action
-               class="cn.nju.seg.atg.plugin.CfgAction"
-               enablesFor="1"
-               icon="icons/coffee.ico"
-               id="cn.nju.seg.atg.plugin.cfgId"
-               label="Show CFG"
-               menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
-         </action>
       </objectContribution>
    </extension>
    <extension point="org.eclipse.ui.editors.annotationTypes">
@@ -70,15 +62,63 @@
 	         verticalRulerPreferenceValue="true">
 	   </specification>
 	</extension>
- <extension
-       point="org.eclipse.ui.editors">
-    <editor
-          class="cn.nju.seg.atg.plugin.CfgCEditor"
-          default="false"
-          extensions="cfcpp"
-          icon="icons/sample.gif"
-          id="cn.nju.seg.atg.plugin.cfgceditor"
-          name="cfgceditor">
-    </editor>
- </extension>
+	 <extension
+	       point="org.eclipse.ui.editors">
+	    <editor
+	          class="cn.nju.seg.atg.plugin.CfgCEditor"
+	          default="false"
+	          extensions="cfcpp"
+	          icon="icons/sample.gif"
+	          id="cn.nju.seg.atg.plugin.cfgceditor"
+	          name="cfgceditor">
+	    </editor>
+	 </extension>
+   <extension
+         point="org.eclipse.ui.views">
+	      <category
+	            name="ATG"
+	            id="ATG">
+	      </category>
+	      <view
+	            name="ATG View"
+	            icon="icons/sample.gif"
+	            category="ATG"
+	            class="cn.nju.seg.atg.plugin.AtgView"
+	            id="cn.nju.seg.atg.plugin.AtgView">
+	      </view>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.actionSets">
+      <actionSet
+            label="Atg Action Set"
+            visible="true"
+            id="cn.nju.seg.atg.plugin.atgactionset">
+         <menu
+               label="&amp;Atg Menu"
+               id="atgMenu">
+            <separator
+                  name="atgGroup">
+            </separator>
+         </menu>
+         <action
+               label="Atg &amp;Run Action"
+               icon="icons/coffee.ico"
+               class="cn.nju.seg.atg.plugin.AtgRunAction"
+               tooltip="Run Atg"
+               menubarPath="atgMenu/atgGroup"
+               toolbarPath="atgGroup"
+               id="cn.nju.seg.atg.plugin.AtgRunAction">
+         </action>
+         <action
+               label="Atg &amp;Stop Action"
+               icon="icons/data.ico"
+               class="cn.nju.seg.atg.plugin.AtgStopAction"
+               tooltip="Stop Atg"
+               menubarPath="atgMenu/atgGroup"
+               toolbarPath="atgGroup"
+               id="cn.nju.seg.atg.plugin.AtgStopAction">
+         </action>
+      </actionSet>
+   </extension>
 </plugin>

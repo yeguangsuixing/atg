@@ -6,11 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.cdt.core.model.IFunctionDeclaration;
-import org.eclipse.cdt.internal.ui.editor.CEditor;
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -18,16 +13,11 @@ import org.eclipse.jface.text.source.IAnnotationModel;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.ui.IEditorPart;
-import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
-import org.eclipse.ui.console.ConsolePlugin;
-import org.eclipse.ui.console.IConsole;
-import org.eclipse.ui.console.MessageConsole;
 
 import cn.nju.seg.atg.Atg;
 
@@ -37,15 +27,15 @@ import cn.nju.seg.atg.Atg;
  * */
 @SuppressWarnings("restriction")
 public class AtgAction implements IObjectActionDelegate {
+
+	private static final String RES_ID_CFG_NODE =
+			"cn.nju.seg.atg.plugin.cfgceditor";
+	
+	private static final String RES_ID_VIEW =
+			"cn.nju.seg.atg.plugin.AtgView";
 	
 	/** 用于标记用户当前选择的内容 */
 	private ISelection fSelection;
-	/** 是否已经添加控制台 */
-	private boolean fAddedConsole = false;
-	/** ATG控制台 */
-	private MessageConsole fConsole = new MessageConsole("ATG Console",null);
-	/** 当前编辑器 */
-	private IEditorPart fCEditor;
 	/** cfg C编辑器 */
 	private CfgCEditor fCfgCEditor;
 	/** 标注模型 */
@@ -53,32 +43,51 @@ public class AtgAction implements IObjectActionDelegate {
 	/** 标记列表 */
 	private List<Annotation> fAnnotationList = new ArrayList<Annotation>();
 	
+	private Atg atg;
+	
 	@Override
 	public void run(IAction action) {
 		//JOptionPane.showMessageDialog(null, "Hello, ATG!");
 		if (!(fSelection instanceof IStructuredSelection)) return;
-
-		IWorkbenchPage page =  PlatformUI.getWorkbench().getActiveWorkbenchWindow()
-				.getActivePage();
-		fCEditor = page.getActiveEditor();
-		//IDocumentProvider docprv = ((CEditor)ep).getDocumentProvider();
-		ISourceViewer sourceView = ((CEditor)fCEditor).getViewer();
-		fAnnotationModel = sourceView.getAnnotationModel();
 		Object funcdecln = ((IStructuredSelection)fSelection).getFirstElement();
 		if(!(funcdecln instanceof IFunctionDeclaration)) return;
+
+
+		fCfgCEditor = AtgActivator.getDefault().getCfgCEditor();
+		//IDocumentProvider docprv = ((CEditor)ep).getDocumentProvider();
+		ISourceViewer sourceView = fCfgCEditor.getViewer();
+		fAnnotationModel = sourceView.getAnnotationModel();
+
 		
-		if(!fAddedConsole){//添加控制台
-			fAddedConsole = true;
-			ConsolePlugin.getDefault().getConsoleManager().addConsoles(
-					new IConsole[]{fConsole});
+		IWorkbenchPage page =  PlatformUI.getWorkbench()
+				.getActiveWorkbenchWindow().getActivePage();
+		try {
+			page.showView(RES_ID_VIEW);
+		} catch (PartInitException e1) {
+			e1.printStackTrace();
 		}
 		
-
-		//生成测试数据
-		Atg atg = new Atg(this, fConsole.newMessageStream(), 
-				(IFunctionDeclaration)funcdecln);
-		atg.pretreatment();
+		if(atg == null){
+			atg = AtgActivator.getDefault().fAtg;
+		}
+		AtgView atgview = (AtgView)page.findView(RES_ID_VIEW);
+		atg.setArgDataViewer(atgview);
+		atgview.setPathShower(fCfgCEditor);
 		
+		//生成测试数据
+		atg.setFunctionDeclaration((IFunctionDeclaration) funcdecln);
+		atg.generateCfg(true);
+		
+		if(fCfgCEditor != null){
+			fCfgCEditor.updateData(atg.getCfgEntry());
+			fCfgCEditor.updateUi();
+		}
+		
+		atg.pretreatment();
+		atg.generateData();
+		//atg.posttreatment();
+		
+		/*
 		//生成cfcpp文件
 		IFile ifile = ((IFileEditorInput)(fCEditor.getEditorInput())).getFile();
 		IProject project = ifile.getProject();
@@ -91,40 +100,33 @@ public class AtgAction implements IObjectActionDelegate {
 			}
 			//IDE.setDefaultEditor(cfcppifile, "cn.nju.seg.atg.plugin.cfgceditor");
 			//IDE.openEditor(page, cfcppifile, "cn.nju.seg.atg.plugin.cfgceditor");
-			page.openEditor(fCEditor.getEditorInput(), 
-					"cn.nju.seg.atg.plugin.cfgceditor", true, 
-					IWorkbenchPage.MATCH_ID | IWorkbenchPage.MATCH_INPUT);
-			fCEditor = PlatformUI.getWorkbench().getActiveWorkbenchWindow()
-					.getActivePage().getActiveEditor();
-			if(fCEditor instanceof CfgCEditor){
-				fCfgCEditor = (CfgCEditor)fCEditor;
-				sourceView = fCfgCEditor.getViewer();
-				fAnnotationModel = sourceView.getAnnotationModel();
-			}
+			
 		} catch (PartInitException e) {
 			e.printStackTrace();
 		} catch (CoreException e1) {
 			e1.printStackTrace();
-		}
+		}//*/
 
-		fCfgCEditor.setCfgPaintingPanel(atg.getCfgPanel());
-		fCfgCEditor.fCfgRulerColumn.layout(true);
-		
-		atg.run();
-		
+		//fCfgCEditor.setCfgPaintingPanel(atg.getCfgPanel());
+		//fCfgCEditor.fCfgRulerColumn.layout(true);
 		
 	}
 	
-	/** 添加标注 */
+	/** 
+	 * 添加标注
+	 * @param hoverString 当鼠标移动到标注上显示的信息
+	 * @param offset 标注起始偏移量
+	 * @param length 标注长度
+	 *  */
 	public void addAnnotation(String hoverString, int offset, int length){
-		Annotation annotation = new Annotation(
-				"cn.nju.seg.atg.TextEditor.AtgNode", true, hoverString);
+		Annotation annotation = new Annotation( RES_ID_CFG_NODE, 
+				true, hoverString);
 		Position pos = new Position(offset, length);
 		this.fAnnotationModel.addAnnotation(annotation, pos);
 		this.fAnnotationList.add(annotation);
 	}
 	
-	/** 清除标注 */
+	/** 清除所有标注 */
 	public void clearAllAnnotations(){
 		for(Annotation an : fAnnotationList){
 			fAnnotationModel.removeAnnotation(an);
@@ -138,9 +140,8 @@ public class AtgAction implements IObjectActionDelegate {
 	}
 
 	@Override
-	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-		// TODO Auto-generated method stub
-		return;
+	public void setActivePart(IAction action, IWorkbenchPart targetPart) { 
+		/*do nothing*/
 	}
 
 }

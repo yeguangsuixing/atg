@@ -17,7 +17,7 @@ import java.util.TreeMap;
 
 import cn.nju.seg.atg.cfg.Cfg;
 import cn.nju.seg.atg.cfg.CfgCondNode;
-import cn.nju.seg.atg.cfg.CfgConstraintNode;
+import cn.nju.seg.atg.cfg.CfgConstraintUnit;
 import cn.nju.seg.atg.cfg.CfgNode;
 import cn.nju.seg.atg.cfg.CfgNode.Type;
 import cn.nju.seg.atg.cfg.CfgPath;
@@ -60,7 +60,7 @@ public class CppManager {
 		/** 执行路径 */
 		public CfgPath path;
 		/** 内部节点运行值 */
-		public Map<CfgConstraintNode, Double> innerNodeMap;
+		public Map<CfgConstraintUnit, Double> innerNodeMap;
 	}
 	
 	public static class LoadResult extends OpResult {
@@ -124,8 +124,8 @@ public class CppManager {
 			e.printStackTrace();
 		}
 		util = new CppManagerUtil();
-		String b = util.init();
-		System.out.println("util init:"+b);
+		util.init();
+		//System.out.println("util init:"+b);
 	}
 	
 	/** 获取管理器实例 */
@@ -225,28 +225,27 @@ public class CppManager {
 			//再写入函数指针参数
 			writer.append(CppManager.STR_FUNC_DECL);
 			for(CfgNode node : nodelist){
-				if(node.srcMap.isEmpty()) continue;
+				if(node.isEmpty()) continue;
 				//将节点之前的内容原样输出
 				int nodeoff = node.getFirstOffset();
 				for(; index < nodeoff; index ++){
 					writer.append(filebuf[index]);
 				}
 				//插桩
-				if(node.forInit) {
+				if(node.isForInit()) {//TODO 
 					continue;
 				}
-				if(node.type == Type.CondIf || node.type == Type.CondLoop){
+				if(node.isCondType()){
 					writer.append(String.format(
 							CppManager.STR_FUNC_CALL, node.getId(), "0"
 					));
 					writer.append(",");
 					CfgCondNode condnode = (CfgCondNode)node;
-					List<CfgConstraintNode> consnodelist = condnode.getAllInnerNodes();
-					for(CfgConstraintNode consnode : consnodelist){
-						if(consnode.constraint == null
-								|| consnode.constraint.getOffset() < 0) continue;
-						int off = consnode.constraint.getOffset();
-						int len = consnode.constraint.getLength();
+					List<CfgConstraintUnit> consnodelist = condnode.getAllInnerNodes();
+					for(CfgConstraintUnit consnode : consnodelist){
+						int off = consnode.getOffset();
+						if(off < 0) continue;
+						int len = consnode.getLength();
 						//将内部节点之前的内容原样输出
 						for(; index < off; index ++){
 							writer.append(filebuf[index]);
@@ -254,7 +253,7 @@ public class CppManager {
 						writer.append("(");
 						writer.append(String.format(
 								CppManager.STR_FUNC_CALL, consnode.getId(), 
-								consnode.constraint.toValueString()
+								consnode.getValueString()
 						));
 						writer.append(",");
 						for(; index < off+len; index ++){
@@ -263,10 +262,10 @@ public class CppManager {
 						writer.append(")");
 					}
 				} else {
-					if(node.type == Type.Normal && node.isSingle
-							|| node.type == Type.Return
-							|| node.type == Type.Break
-							|| node.type == Type.Continue){//需要添加大括号的情况
+					if(node.getType() == Type.Normal && node.isSingle()
+							|| node.getType() == Type.Return
+							|| node.getType() == Type.Break
+							|| node.getType() == Type.Continue){//需要添加大括号的情况
 						writer.append('{');
 						writer.append(String.format(
 								CppManager.STR_FUNC_CALL, node.getId(), "0"));
@@ -281,7 +280,7 @@ public class CppManager {
 						writer.append(String.format(
 								CppManager.STR_FUNC_CALL, node.getId(), "0"
 						));
-						if(node.type == Type.Iterate){
+						if(node.getType() == Type.Iterate){
 							writer.append(',');
 						} else {//TODO 还有什么类型？
 							writer.append(';');
@@ -438,12 +437,12 @@ public class CppManager {
 	/**
 	 * 获取内部节点运行信息
 	 * */
-	private Map<CfgConstraintNode,Double> getInnerNodeExecInfo(){
-		Map<CfgConstraintNode,Double> execmap = new TreeMap<CfgConstraintNode,Double>();
+	private Map<CfgConstraintUnit,Double> getInnerNodeExecInfo(){
+		Map<CfgConstraintUnit,Double> execmap = new TreeMap<CfgConstraintUnit,Double>();
 		int[] nodes = util.getInnerNodePath();
 		double[] values = util.getInnerNodeValue();
 		for(int i = 0; i < nodes.length; i ++){
-			CfgConstraintNode cn = this.cfg.getConstraintNodeById(nodes[i]);
+			CfgConstraintUnit cn = this.cfg.getConstraintNodeById(nodes[i]);
 			execmap.put(cn, values[i]);
 		}
 		return execmap;

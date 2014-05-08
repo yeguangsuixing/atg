@@ -1,7 +1,6 @@
 package cn.nju.seg.atg.cfg;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -18,10 +17,12 @@ public class CfgPath {
 	
 	private int id;
 	
-	/** 是否覆盖 */
-	public boolean isCoverred = false;
+	public static int MAX_NR_PARAS = 100;
 	
-	public int coverredNodeCount = 0;
+	/** 是否覆盖 */
+	/*default*/ boolean isCoverred = false;
+	
+	/*default*/ int coverredNodeCount = 0;
 	
 	/** 
 	 * <p>最优覆盖时的输入数据列表</p>
@@ -32,11 +33,43 @@ public class CfgPath {
 	public CfgPath(){
 		this.id = ++ID;
 		this.path = new ArrayList<CfgNode>(20);
-		this.parasList = new LinkedList<Object[]>();
+		this.parasList = new ArrayList<Object[]>();
 	}
 	
 	public int getId(){
 		return this.id;
+	}
+	
+	public boolean isCoverred(){
+		return this.isCoverred;
+	}
+	
+	public int getCoverredNodeCount(){
+		return this.coverredNodeCount;
+	}
+	public void addParas(int count, Object[] paras){
+		if(this.coverredNodeCount < count){
+			this.parasList.clear();
+			this.coverredNodeCount = count;
+			if(count == this.path.size()){
+				this.isCoverred = true;
+			}
+			if(paras != null && this.parasList.size() < MAX_NR_PARAS){
+				this.parasList.add(paras);			
+			}
+		} else if(this.coverredNodeCount == count){
+			if(paras != null && this.parasList.size() < MAX_NR_PARAS){
+				this.parasList.add(paras);			
+			}
+		}
+	}
+	
+	public int getParasListSize(){
+		return this.parasList.size();
+	}
+	
+	public Object[] getParas(int index){
+		return this.parasList.get(index);
 	}
 	
 	public List<CfgNode> getPath() {
@@ -53,11 +86,6 @@ public class CfgPath {
 		if(size > 0){
 			path.remove(size-1);
 		}
-	}
-
-	/** 获取最优覆盖时的输入数据列表 */
-	public List<Object[]> getParasList(){
-		return this.parasList;
 	}
 	
 	/** 获取路径字符串，每个节点之间使用“->”相连 */
@@ -83,11 +111,14 @@ public class CfgPath {
 	
 	/**
 	 * 判断指定的输入是否与当前路径节点列表一致
+	 * @param nodeList 要比较的节点列表
+	 * @return 节点列表是否完全按序覆盖了当前路径上的点
 	 * */
 	public boolean equals(List<CfgNode> nodeList){
 		if(nodeList == null) return false;
 		int i = 0;
 		for(CfgNode node : nodeList){
+			//路径节点列表使用arraylist，所以此处get开销很小
 			if(i >= this.path.size()
 				|| node != this.path.get(i++)) return false;
 		}
@@ -96,6 +127,8 @@ public class CfgPath {
 	
 	/**
 	 * 获取相同的祖先节点列表
+	 * @param path 要处理的节点列表
+	 * @return 指定输入的节点列表与当前节点列表具有的共同祖先列表
 	 * */
 	public List<CfgNode> getCommonAncesters(CfgPath path){
 		List<CfgNode> ancesterlist = new ArrayList<CfgNode>();
@@ -108,7 +141,6 @@ public class CfgPath {
 				return ancesterlist;
 			}
 		}
-		
 		return ancesterlist;
 	}
 }

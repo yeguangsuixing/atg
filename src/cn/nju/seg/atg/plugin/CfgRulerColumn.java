@@ -32,6 +32,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.TypedListener;
 
 import cn.nju.seg.atg.cfg.CfgPath;
+import cn.nju.seg.atg.plugin.CfgCEditor.GraphNode;
 
 /**
  * Cfg标尺，此标尺依照{@link LineNumberRulerColumn}修改
@@ -39,33 +40,6 @@ import cn.nju.seg.atg.cfg.CfgPath;
  * @time 2014/05/02 21:00
  * */
 public class CfgRulerColumn implements IVerticalRulerColumn {
-
-	/**
-	 * 控制流标尺画笔接口
-	 * @author ygsx
-	 * @time 2014/05/03 14:50
-	 * */
-	public static interface ICfgPaintingPanel {
-		
-		/** 
-		 * 绘制cfg标尺
-		 * @param gc 图形上下文
-		 * @param visibleRange 可视范围
-		 * */
-		public void paint(GC gc, ILineRange lineRange, 
-				LineHeightDelegate fLineHeight, int yStart);
-		
-		/** 获取宽度 */
-		public int getWidth();
-
-		/**
-		 * 设置执行路径
-		 * @param path 执行路径
-		 * */
-		public void setFocusPath(CfgPath path);
-	}
-
-	
 	
 	/**
 	 * 可视区域监听器
@@ -147,7 +121,8 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 		}
 	}
 	
-	ICfgPaintingPanel fPaintingPanel;
+	
+	CfgPaintingPanel fPaintingPanel = new CfgPaintingPanel();
 	LineHeightDelegate fLineHeight = new LineHeightDelegate();
 	
 	
@@ -182,8 +157,15 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 	/** Flag indicating whether a relayout is required */
 	private boolean fRelayoutRequired = false;
 
+	/** 根节点 */
+	private GraphNode fRoot;
+	
+	/*default*/void setGraphRoot(GraphNode root){
+		this.fRoot = root;
+	}
+	
 	@Override
-	public void setModel(IAnnotationModel model) { }
+	public void setModel(IAnnotationModel model) { /*do nothing*/ }
 
 	@Override
 	public Control getControl() {
@@ -192,7 +174,7 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 
 	@Override
 	public int getWidth() {
-		return 180;//fIndentation[0];
+		return 180;
 	}
 
 	@Override
@@ -279,13 +261,10 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 		if (fFont != null)
 			fCanvas.setFont(fFont);
 
-		
-		
 		//updateNumberOfDigits();
 		return fCanvas;
 	}
 
-	
 	/**
 	 * 设置背景色
 	 * @param background 背景色
@@ -314,27 +293,6 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 			fPaintingPanel.setFocusPath(path);
 		}
 	}
-/*
-	protected boolean updateNumberOfDigits() {
-		if (fCachedTextViewer == null)
-			return false;
-
-		IDocument document = fCachedTextViewer.getDocument();
-		int lines = document == null ? 0 : document.getNumberOfLines();
-
-		int digits= 2;
-		while (lines > Math.pow(10, digits) -1) {
-			++digits;
-		}
-
-		if (fCachedNumberOfDigits != digits) {
-			fCachedNumberOfDigits= digits;
-			return true;
-		}
-
-		return false;
-	}//*/
-
 
 	/**
 	 * 双缓冲绘图
@@ -392,26 +350,9 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 		if(fPaintingPanel != null){
 			int y = -JFaceTextUtil.getHiddenTopLinePixels(
 					fCachedTextWidget);
-			fPaintingPanel.paint(gc, visibleRange, fLineHeight, y);
+			fPaintingPanel.paint(gc, fRoot, visibleRange, fLineHeight, y);
 		}
-		
-		/*
-		int line = visibleRange.getStartLine();
-		int lastLine = line + visibleRange.getNumberOfLines();
-		for (; line < lastLine; line ++) {
-			int widgetLine = JFaceTextUtil.modelLineToWidgetLine(
-					fCachedTextViewer, line);
-			if (widgetLine == -1) continue;
-			
-			int baselineBias= getBaselineBias(gc, widgetLine);
-			gc.drawString(Integer.toString(line + 1), 
-					0, y + baselineBias, true);
-			
-			gc.drawLine(18, y, 95, y);
 
-			y += fCachedTextWidget.getLineHeight(
-					fCachedTextWidget.getOffsetAtLine(widgetLine));
-		}//*/
 	}
 
 

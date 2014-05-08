@@ -2,11 +2,12 @@ package cn.nju.seg.atg.model;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 
 /**
- * 区间类，每个区间均是左开右闭
+ * 区间类，每个区间均是左闭右开
  * @author ygsx
  * @time 2014/04/23 11:05
  * */
@@ -108,6 +109,39 @@ public class Interval {
 	public String toString(){
 		return String.format("[%f,%f)", left, right);
 	}
+	
+	/**
+	 * 标准化一个区间列表
+	 * */
+	public static List<Interval> standardize(List<Interval> intervals){
+		if(intervals == null || intervals.isEmpty())
+			return intervals;
+		List<Interval> standardizablelist = new LinkedList<Interval>();
+		Iterator<Interval> iter = intervals.iterator();
+		
+		Interval last = iter.next();
+		double lastright = last.right;
+		while(iter.hasNext()){
+			Interval cur = iter.next().clone();
+			if(cur.left > lastright){
+				if(lastright == last.right){//直接添加原来的
+					standardizablelist.add(last);
+				} else {
+					standardizablelist.add(new Interval(last.left, lastright));
+				}
+				last = cur;
+				lastright = last.right;
+			} else {
+				lastright = cur.right;
+			}
+		}
+		if(lastright == last.right){//直接添加原来的
+			standardizablelist.add(last);
+		} else {
+			standardizablelist.add(new Interval(last.left, lastright));
+		}
+		return standardizablelist;
+	}
 
 	/**
 	 * 求两个区间列表的交集
@@ -115,7 +149,7 @@ public class Interval {
 	 * @param list2 第二个区间列表
 	 * @return 给定区间的交集
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked")	
 	public static List<Interval> getIntersection(List<Interval> list1, 
 			List<Interval> list2) {
 		List<Interval> intersectionList = new ArrayList<Interval>();
@@ -129,8 +163,8 @@ public class Interval {
 			((Iterator<Interval>)iters[1]).next()
 		};
 		//记录当前比较的两个区间，以右边界为比较对象
-		Interval tgreater, tless;
-		while(ts[0] != null && ts[1] != null) {
+		Interval tgreater = null, tless = null;
+		while(true) {
 			int greaterindex = 0, lessindex = 1;
 			if(ts[0].right < ts[1].right){
 				greaterindex = 1;
@@ -147,11 +181,12 @@ public class Interval {
 			double leftgreater = Math.max(tgreater.left, tless.left);
 			intersectionList.add(new Interval(leftgreater, tless.right));
 		}
-
+		if(tgreater != null && tless != null) {
+			double leftgreater = Math.max(tgreater.left, tless.left);
+			intersectionList.add(new Interval(leftgreater, tless.right));
+		}
 		return intersectionList;
 	}
-
-	
 
 	/**
 	 * 求两个区间的并集
@@ -206,7 +241,6 @@ public class Interval {
 		return unionList;
 	}
 	
-
 	/**
 	 * 求区间的补集
 	 * @param 区间列表
@@ -234,46 +268,59 @@ public class Interval {
 			Interval temp = new Interval(maxInterval.left, interval.left);
 			complementaryList.add(temp);
 		}
-		double lastright = interval.right;
+		Interval last = interval;
+		//double lastright = interval.right;
 		while(iter.hasNext()){ 
 			interval = iter.next();
 			if(interval.right >= maxInterval.right){
 				break;
 			}
-			if(lastright < interval.left){//防止出现虽是连续区间但是却分段的情况，如：[3.0,4.0), [4.0, 5.0)
-				Interval temp = new Interval(lastright, interval.left);
+			if(last.right < interval.left){//防止出现虽是连续区间但是却分段的情况，如：[3.0,4.0), [4.0, 5.0)
+				Interval temp = new Interval(last.right, interval.left);
 				complementaryList.add(temp);
 			}
-			lastright = interval.right;
+			last = interval;//lastright = interval.right;
 		}
-		double end = Math.min(interval.left, maxInterval.right);
-		if(lastright < end){
-			Interval temp = new Interval(lastright, end);
-			complementaryList.add(temp);
+		if(interval.right < maxInterval.right){
+			complementaryList.add(new Interval(interval.right, maxInterval.right));
+		} else {
+			double end = Math.min(interval.left, maxInterval.right);
+			if(last.right < end){
+				complementaryList.add(new Interval(last.right, end));
+			}
 		}
 		
 		return complementaryList;
 	}
 	
+	/**
+	 * 这里是当前类的一些测试用例
+	 * @param args 【未使用】
+	 * */
 	public static void main(String[] args){
-		Interval maxInterval = new Interval(-10, 10);
+		Interval universalInterval = new Interval(-10, 10);
 		List<Interval> list1 = new java.util.LinkedList<Interval>();
 		List<Interval> list2 = new java.util.LinkedList<Interval>();
 		list1.add(new Interval(0.0, 3.0));
-		list1.add(new Interval(4.0, 6.0));
-		list1.add(new Interval(8.0, 9.0));
-		list1.add(new Interval(11.0, 13.0));
+		list1.add(new Interval(3.0, 6.0));
+		list1.add(new Interval(6.0, 10.0));
+		//list1.add(new Interval(11.0, 13.0));
 		
 		list2.add(new Interval(1.0, 5.0));
 		list2.add(new Interval(6.5, 7.5));
 		list2.add(new Interval(8.5, 10.5));
 
+		//list1 = Interval.standardize(list1);
+		
 		List<Interval> il = Interval.getIntersection(list2, list1);
-		List<Interval> ul = Interval.getUnion(maxInterval, list2, list1);
-		List<Interval> cl = Interval.getComplementary(maxInterval, list2);
-		System.out.println(il);
-		System.out.println(ul);
-		System.out.println(cl);
+		List<Interval> ul = Interval.getUnion(universalInterval, list2, list1);
+		List<Interval> cl = Interval.getComplementary(universalInterval, list2);
+		System.out.println("UniversalSet="+universalInterval);
+		System.out.println("SetList1="+list1);
+		System.out.println("SetList2="+list2);
+		System.out.println("Intersection(SetList1,SetList2)="+il);
+		System.out.println("Union((SetList1,SetList2)=)="+ul);
+		System.out.println("Complementary(UniversalSet, list2)="+cl);
 	}
 }
 

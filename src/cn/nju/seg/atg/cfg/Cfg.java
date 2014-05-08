@@ -69,9 +69,10 @@ public class Cfg {
 		return this.condNodeList;
 	}
 	
-	public CfgConstraintNode getConstraintNodeById(int id){
+	/** 根据id获取对应的约束单元 */
+	public CfgConstraintUnit getConstraintNodeById(int id){
 		for(CfgCondNode condnode : condNodeList){
-			for(CfgConstraintNode cn : condnode.getAllInnerNodes()){
+			for(CfgConstraintUnit cn : condnode.getAllInnerNodes()){
 				if(cn.getId() == id) return cn;
 			}
 		}
@@ -95,15 +96,17 @@ public class Cfg {
 	
 	/**
 	 * 获取控制流图入口
+	 * @return 控制流图入口
 	 * */
 	public CfgNode getEntry(){
-		return this.attachHeader;
+		if(attachHeader == null) return null;
+		return this.attachHeader.next;
 	}
 	
 	/**
-	 * 生成控制流图，根据输入的AST
+	 * 根据构造时传入的AST生成控制流图
 	 * */
-	public void run(){
+	public boolean generateCfg(){
 		this.nodeList.clear();
 		this.condNodeList.clear();
 		this.attachHeader.resetRelative();
@@ -111,7 +114,9 @@ public class Cfg {
 		this.nodeList.add(attachHeader);
 		this.nodeList.add(attachTail);
 		IASTStatement body = ast.getBody();
-		assert(body instanceof IASTCompoundStatement);
+		if(!(body instanceof IASTCompoundStatement)){
+			return false;
+		}
 		
 		IASTFunctionDeclarator  funcdec = ast.getDeclarator();
 		//TODO 通过下标获取参数节点不是一个好方法
@@ -124,11 +129,12 @@ public class Cfg {
 				this.attachHeader, leavesNodeList);
 		for(CfgNode cfgnode : leavesNodeList){
 			cfgnode.next = this.attachTail;
-			this.attachTail.prev = cfgnode;
+			this.attachTail.prevList.add(cfgnode);
 		}
 		for(CfgCondNode node : this.condNodeList){
 			node.handleExpression();
 		}
+		return true;
 	}
 	
 	/** 从给定的字符串获取执行路径 */
@@ -171,10 +177,14 @@ public class Cfg {
 		return this.getCfgPath(nodelist);
 	}
 	
-	public void updateConstraintNode(Double para, Map<CfgConstraintNode, Double> nodeMap){
-		Set<Entry<CfgConstraintNode, Double>> nodes = nodeMap.entrySet();
-		for(Entry<CfgConstraintNode, Double> entry : nodes){
-			entry.getKey().getPointSet().add(new Point(para, entry.getValue()));
+	/**
+	 * 更新约束节点
+	 * */
+	public void updateConstraintNode(Double para, 
+			Map<CfgConstraintUnit, Double> nodeMap){
+		Set<Entry<CfgConstraintUnit, Double>> nodes = nodeMap.entrySet();
+		for(Entry<CfgConstraintUnit, Double> entry : nodes){
+			entry.getKey().addPoint(new Point(para, entry.getValue()));
 		}
 	}
 	
@@ -286,7 +296,7 @@ public class Cfg {
 						nestedleavesnodelist);
 					leavesNodeList.addAll(nestedleavesnodelist);//内层叶子->当前层叶子
 					//nestedleavesnodelist.clear();//列表不再使用，所以不用clear
-					elsenode.isElse = true;
+					elsenode.isElse = true;//TODO 空语句时elsenode为null
 					condnode.next = elsenode;
 				}
 				condnode.then = thennode;
