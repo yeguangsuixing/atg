@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -86,6 +87,8 @@ public class CfgNode {
 	
 	/** 是否是for循环初始化的节点 */
 	/*default*/ boolean forInit = false;
+	/** 是否是声明语句，如果是，那么插桩时需要在插桩函数前面定义一个变量 */
+	/*default*/ boolean isDeclaration = false;
 	/** 是否是条件语句的else从句 */
 	/*default*/ boolean isElse = false;
 	
@@ -149,6 +152,11 @@ public class CfgNode {
 		return this.srcMap.isEmpty();
 	}
 
+	/** 获取该节点所对应的源文件中的内容的偏移和长度集合 */
+	public Set<Entry<Integer, Integer>> getSrcMapSet(){
+		return this.srcMap.entrySet();
+	}
+	
 	/**
 	 * 判断当前节点是否是条件(if 或loop)节点
 	 * */
@@ -202,6 +210,12 @@ public class CfgNode {
 	public boolean isForInit(){
 		return this.forInit;
 	}
+	
+	/** 判断当前节点是否是声明节点 */
+	public boolean isDeclaration(){
+		return this.isDeclaration;
+	}
+	
 	/** 获取当前节点是否是单独节点（单独节点是指当前语句块中只有一条语句） */
 	public boolean isSingle(){
 		return this.isSingle;

@@ -14,6 +14,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.net.URL;
+
+import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.core.runtime.Platform;
+import org.osgi.framework.Bundle;
 
 import cn.nju.seg.atg.cfg.Cfg;
 import cn.nju.seg.atg.cfg.CfgCondNode;
@@ -74,13 +79,15 @@ public class CppManager {
 	
 	private static final String STR_FUNC_EXTERN_C = "extern \"C\" ";
 	//此处的返回值只是为了for循环语句中的变量定义通过编译，并不使用其返回值
-	private static final String STR_FUNC_DECL = "int (*_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path)(int, double),";
-	private static final String STR_FUNC_CALL = "_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
-	@SuppressWarnings("unused")
+	private static final String STR_FUNC_DECL = 
+			"int (*_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path)(int, double),";
+	private static final String STR_FUNC_CALL = 
+			"_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
+	
 	private static final String FOR_INIT_VAR_DEF = 
-			"_cn_nju_seg_atg_for_var%d = _cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
-	@SuppressWarnings("unused")
-	private static final int FOR_INIT_VAR_NO = 0;
+			"_cn_nju_seg_atg_for_var%d = "
+			+ "_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
+	private static int FOR_INIT_VAR_NO = 0;
 	
 	private static final String GPP_COMPILE_CMD = "gcc -shared -fpic -o %s %s ";
 	
@@ -119,7 +126,10 @@ public class CppManager {
 			this.loadList.add(null);
 		}
 		try{
-			System.load("/home/ygsx/CLFF/Workspace/ATG/cn.nju.seg.atg/CppManagerUtil.so");
+			Bundle bundle = Platform.getBundle("cn.nju.seg.atg");
+			URL soUrl = bundle.getResource("lib/CppManagerUtil.so");
+			String so = FileLocator.toFileURL(soUrl).getPath();
+			System.load(so);
 		} catch(Exception e){
 			e.printStackTrace();
 		}
@@ -136,11 +146,12 @@ public class CppManager {
 	/**
 	 * 编译一个C++文件
 	 * @param cppfilename 要编译的c++文件名
+	 * @param outfilename 输出文件名
 	 * @return 是否编译成功
 	 * */
-	public CompileResult compile(String cppfilename){
+	public CompileResult compile(String cppfilename, String outfilename){
 		CompileResult cr = new CompileResult();
-		cr.sofileName = "/home/ygsx/cpp.so";
+		cr.sofileName = outfilename;
 		Process p = null;
 		cr.startTime = new Date();
 		try {
@@ -232,7 +243,21 @@ public class CppManager {
 					writer.append(filebuf[index]);
 				}
 				//插桩
-				if(node.isForInit()) {//TODO 
+				if(node.isForInit()) {//如果是for循环初始化节点，那么先在for之前插桩
+					//int foroff = node.getForOffset();
+					int end = node.getEndOffset();
+					for(; index < end-1; index ++){//-1是为了不输出分号
+						writer.append(filebuf[index]);
+					}
+					writer.append(",");
+					if(node.isDeclaration()){
+						writer.append(String.format(FOR_INIT_VAR_DEF, 
+								FOR_INIT_VAR_NO++, node.getId(), "0"));
+					} else {
+						writer.append(String.format(
+								CppManager.STR_FUNC_CALL, node.getId(), "0"
+						));
+					}
 					continue;
 				}
 				if(node.isCondType()){
@@ -430,14 +455,14 @@ public class CppManager {
 		cr.succeed = rsl.charAt(0) == '1';
 		cr.msg = rsl.substring(2);
 		cr.path = this.cfg.getPathFromString(cr.msg, ",");
-		cr.innerNodeMap = getInnerNodeExecInfo();
+		cr.innerNodeMap = getConstraintUnitExecInfo();
 		return cr;
 	}
 	
 	/**
-	 * 获取内部节点运行信息
+	 * 获取约束单元运行信息
 	 * */
-	private Map<CfgConstraintUnit,Double> getInnerNodeExecInfo(){
+	private Map<CfgConstraintUnit,Double> getConstraintUnitExecInfo(){
 		Map<CfgConstraintUnit,Double> execmap = new TreeMap<CfgConstraintUnit,Double>();
 		int[] nodes = util.getInnerNodePath();
 		double[] values = util.getInnerNodeValue();

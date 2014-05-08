@@ -37,7 +37,7 @@ public class CfgPaintingPanel {
 	
 	
 	/** 画板宽度 */
-	private int fWidth;
+	private int fWidth = 10;
 	
 	/** 焦点路径 */
 	private CfgPath fFocusPath;
@@ -176,8 +176,8 @@ public class CfgPaintingPanel {
 			} else {
 				gc.setForeground(BACKWARD_LINE_COLOR);
 			}
-			gc.drawLine(curNode.x, curNode.y, backNode.x, curNode.y);
-			gc.drawLine(backNode.x, curNode.y, backNode.x, backNode.y);
+			gc.drawLine(curNode.x, curNode.y, backNode.x + 2, curNode.y);
+			gc.drawLine(backNode.x + 2, curNode.y, backNode.x + 2, backNode.y);
 			gc.setForeground(oldfgc);
 		} else if(curNode.type == NodeType.Break){
 			//直接向左，并在最右端打点
@@ -240,6 +240,10 @@ public class CfgPaintingPanel {
 
 	public int getWidth() {
 		return this.fWidth;
+	}
+	/** 设置画板宽度 */
+	public void setWidth(int width){
+		this.fWidth = width;
 	}
 
 }

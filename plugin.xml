@@ -18,8 +18,16 @@
                class="cn.nju.seg.atg.plugin.AtgAction"
                enablesFor="1"
                icon="icons/coffee.ico"
-               id="cn.nju.seg.atg.plugin.atgId"
+               id="cn.nju.seg.atg.plugin.popupmenu.atg"
                label="Generate Test Data"
+               menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
+         </action>
+         <action
+               class="cn.nju.seg.atg.plugin.CfgAction"
+               enablesFor="1"
+               icon="icons/coffee.ico"
+               id="cn.nju.seg.atg.plugin.popupmenu.cfg"
+               label="Show Ctrl Flow Graph"
                menubarPath="cn.nju.seg.atg.plugin.popupmenu/AtgGroup">
          </action>
       </objectContribution>
@@ -62,6 +70,7 @@
 	         verticalRulerPreferenceValue="true">
 	   </specification>
 	</extension>
+	
 	 <extension
 	       point="org.eclipse.ui.editors">
 	    <editor
@@ -73,6 +82,7 @@
 	          name="cfgceditor">
 	    </editor>
 	 </extension>
+	 
    <extension
          point="org.eclipse.ui.views">
 	      <category
@@ -86,39 +96,150 @@
 	            class="cn.nju.seg.atg.plugin.AtgView"
 	            id="cn.nju.seg.atg.plugin.AtgView">
 	      </view>
+   </extension>   
+   
+   
+   
+   
+   <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="Atg Cmd Category"
+            id="cn.nju.seg.atg.commands.category">
+      </category>
+      <command
+            name="Atg Run"
+            categoryId="cn.nju.seg.atg.commands.category"
+            id="cn.nju.seg.atg.commands.run">
+      </command>
+      <command
+            name="Atg Stop"
+            categoryId="cn.nju.seg.atg.commands.category"
+            id="cn.nju.seg.atg.commands.stop">
+      </command>
+      <command
+            name="Empty Annatations"
+            categoryId="cn.nju.seg.atg.commands.category"
+            id="cn.nju.seg.atg.commands.emptyann">
+      </command>
    </extension>
    
    <extension
-         point="org.eclipse.ui.actionSets">
-      <actionSet
-            label="Atg Action Set"
-            visible="true"
-            id="cn.nju.seg.atg.plugin.atgactionset">
-         <menu
-               label="&amp;Atg Menu"
-               id="atgMenu">
-            <separator
-                  name="atgGroup">
-            </separator>
-         </menu>
-         <action
-               label="Atg &amp;Run Action"
-               icon="icons/coffee.ico"
-               class="cn.nju.seg.atg.plugin.AtgRunAction"
-               tooltip="Run Atg"
-               menubarPath="atgMenu/atgGroup"
-               toolbarPath="atgGroup"
-               id="cn.nju.seg.atg.plugin.AtgRunAction">
-         </action>
-         <action
-               label="Atg &amp;Stop Action"
-               icon="icons/data.ico"
-               class="cn.nju.seg.atg.plugin.AtgStopAction"
-               tooltip="Stop Atg"
-               menubarPath="atgMenu/atgGroup"
-               toolbarPath="atgGroup"
-               id="cn.nju.seg.atg.plugin.AtgStopAction">
-         </action>
-      </actionSet>
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="cn.nju.seg.atg.commands.run"
+            class="cn.nju.seg.atg.plugin.AtgRunHandler">
+	      <activeWhen>
+	      	<with variable="activeEditorId">
+	      		<equals value="cn.nju.seg.atg.plugin.cfgceditor" />
+	      	</with>
+	      </activeWhen>
+      </handler>
+      <handler
+            commandId="cn.nju.seg.atg.commands.stop"
+            class="cn.nju.seg.atg.plugin.AtgStopHandler">
+	      <activeWhen>
+	      	<with variable="activeEditorId">
+	      		<equals value="cn.nju.seg.atg.plugin.cfgceditor" />
+	      	</with>
+	      </activeWhen>
+      </handler>
+      <handler
+            commandId="cn.nju.seg.atg.commands.emptyann"
+            class="cn.nju.seg.atg.plugin.ClearAnnHandler">
+	      <activeWhen>
+	      	<with variable="activeEditorId">
+	      		<equals value="cn.nju.seg.atg.plugin.cfgceditor" />
+	      	</with>
+	      </activeWhen>
+      </handler>
    </extension>
+   
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="cn.nju.seg.atg.commands.stop"
+            contextId="org.eclipse.ui.contexts.window"
+            sequence="M1+7"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="cn.nju.seg.atg.commands.run"
+            contextId="org.eclipse.ui.contexts.window"
+            sequence="M1+6"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>
+   </extension>
+   
+   
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="menu:org.eclipse.ui.main.menu?after=additions">
+         <menu
+               label="A&amp;tg"
+               mnemonic="T"
+               id="cn.nju.seg.atg.menus">
+            <command
+                  commandId="cn.nju.seg.atg.commands.run"
+                  mnemonic="R"
+                  id="cn.nju.seg.atg.menus.run">
+            </command>
+            <command
+                  commandId="cn.nju.seg.atg.commands.stop"
+                  mnemonic="S"
+                  id="cn.nju.seg.atg.menus.stop">
+            </command>
+            <command
+                  commandId="cn.nju.seg.atg.commands.emptyann"
+                  mnemonic="E"
+                  id="cn.nju.seg.atg.menus.stop">
+            </command>
+         </menu>
+      </menuContribution>
+      <menuContribution
+            locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
+         <toolbar
+               id="cn.nju.seg.atg.toolbars">
+            <command
+                  commandId="cn.nju.seg.atg.commands.run"
+                  icon="icons/coffee.ico"
+                  tooltip="Run Atg"
+                  id="cn.nju.seg.atg.toolbars.run">
+            </command>
+            <command
+                  commandId="cn.nju.seg.atg.commands.stop"
+                  icon="icons/data.ico"
+                  tooltip="Stop Atg"
+                  id="cn.nju.seg.atg.toolbars.stop">
+            </command>
+         </toolbar>
+      </menuContribution>
+   </extension>
+   
+   
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            name="Atg"
+            class="cn.nju.seg.atg.plugin.AtgPreferencePage"
+            id="cn.nju.seg.atg.plugin.AtgPreferencePage">
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="cn.nju.seg.atg.plugin.AtgPreferenceInitializer">
+      </initializer>
+   </extension>
+   
+   
 </plugin>
+
+
+
+
+

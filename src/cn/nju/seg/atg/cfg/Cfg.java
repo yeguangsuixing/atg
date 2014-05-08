@@ -11,6 +11,7 @@ import java.util.Stack;
 import org.eclipse.cdt.core.dom.ast.IASTBreakStatement;
 import org.eclipse.cdt.core.dom.ast.IASTCompoundStatement;
 import org.eclipse.cdt.core.dom.ast.IASTContinueStatement;
+import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTExpression;
 import org.eclipse.cdt.core.dom.ast.IASTForStatement;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDeclarator;
@@ -125,8 +126,9 @@ public class Cfg {
 		this.paraDeclOffset = para.getFileLocation().getNodeOffset();
 		//一般来说，2层比较普遍，那么就会有至多4个叶子节点
 		List<CfgNode> leavesNodeList = new ArrayList<CfgNode>(4);
+		List<CfgCondNode> ifNodeList = new ArrayList<CfgCondNode>(1);
 		this.attachHeader.next = handleStatement((IASTCompoundStatement)body,
-				this.attachHeader, leavesNodeList);
+				this.attachHeader, leavesNodeList, ifNodeList);
 		for(CfgNode cfgnode : leavesNodeList){
 			cfgnode.next = this.attachTail;
 			this.attachTail.prevList.add(cfgnode);
@@ -256,7 +258,7 @@ public class Cfg {
 	 * @param leavesNodeList 叶子节点列表
 	 * */
 	private CfgNode handleStatement(IASTStatement ast, CfgNode current, 
-				List<CfgNode> leavesNodeList) {
+				List<CfgNode> leavesNodeList, List<CfgCondNode> ifNodeList) {
 		IASTNode[] statementNodeList = null;
 		CfgNode firstNode = null;
 		if(ast instanceof IASTCompoundStatement){
@@ -278,36 +280,43 @@ public class Cfg {
 				CfgCondNode condnode = (CfgCondNode) mergeLeaves2CfgNode(
 						Type.CondIf, 
 						current, ifstatement.getConditionExpression(), 
-						leavesNodeList, breakleaves);
+						leavesNodeList, breakleaves, ifNodeList);
 				current = condnode;
 				//如果当前层还没有设置起始节点，那么设置之
 				if(firstNode == null){ firstNode = current; }
 				//处理then分支
 				List<CfgNode> nestedleavesnodelist = new ArrayList<CfgNode>(3);
+				List<CfgCondNode> nestedifnodelist = new ArrayList<CfgCondNode>(1);
 				CfgNode thennode = handleStatement(ifstatement.getThenClause(), 
-						condnode, nestedleavesnodelist);
+						condnode, nestedleavesnodelist, nestedifnodelist);
 				leavesNodeList.addAll(nestedleavesnodelist);//内层叶子->当前层叶子
+				ifNodeList.addAll(nestedifnodelist);//内层叶子->当前层叶子
 				//处理else分支
 				IASTStatement elseclause = ifstatement.getElseClause();
 				condnode.next = null;//必须设置！
 				if(elseclause != null){
 					nestedleavesnodelist.clear();
+					nestedifnodelist.clear();
 					CfgNode elsenode = handleStatement(elseclause, condnode, 
-						nestedleavesnodelist);
+						nestedleavesnodelist, nestedifnodelist);
 					leavesNodeList.addAll(nestedleavesnodelist);//内层叶子->当前层叶子
+					ifNodeList.addAll(nestedifnodelist);//内层叶子->当前层叶子
 					//nestedleavesnodelist.clear();//列表不再使用，所以不用clear
 					elsenode.isElse = true;//TODO 空语句时elsenode为null
 					condnode.next = elsenode;
 				}
 				condnode.then = thennode;
+				ifNodeList.add(condnode);
 			} else if(astnode instanceof IASTForStatement){
 				IASTForStatement forstatement = (IASTForStatement)astnode;
 				IASTStatement initstatement = forstatement.getInitializerStatement();
 				//===========首先，将初始化的语句归结为上一个节点的内容===========
 				if(current.type != Type.Normal){
 					current = mergeLeaves2CfgNode(Type.Normal, current, 
-							initstatement, leavesNodeList, breakleaves);
+							initstatement, leavesNodeList, breakleaves, ifNodeList);
 					current.forInit = true;
+					current.isDeclaration = 
+							(initstatement instanceof IASTDeclarationStatement);
 					//如果当前层还没有设置起始节点，那么设置之
 					if(firstNode == null){ firstNode = current; }
 				} else {
@@ -330,8 +339,9 @@ public class Cfg {
 				if(firstNode == null){ firstNode = current; }
 				//递归处理
 				List<CfgNode> nestedleavesnodelist = new ArrayList<CfgNode>(3);
+				List<CfgCondNode> nestedifnodelist = new ArrayList<CfgCondNode>(1);
 				CfgNode forbodynode = handleStatement(forstatement.getBody(), 
-						condnode, nestedleavesnodelist);
+						condnode, nestedleavesnodelist, nestedifnodelist);
 				for(CfgNode cfgnode : nestedleavesnodelist){
 					if(cfgnode.type == Type.Break){
 						breakleaves.add(cfgnode);
@@ -341,16 +351,21 @@ public class Cfg {
 						cfgnode.next = iterNode;
 					}
 				}
+				for(CfgCondNode tnode : nestedifnodelist){
+					tnode.merge = iterNode;
+				}
 				condnode.then = forbodynode;
 				condnode.next = null;
 			} else if(astnode instanceof IASTWhileStatement){
 				IASTWhileStatement whilestatement = (IASTWhileStatement)astnode;
 				current = mergeLeaves2CfgNode(Type.CondLoop, current, 
-						whilestatement.getCondition(), leavesNodeList, breakleaves);
+						whilestatement.getCondition(), leavesNodeList, 
+						breakleaves, ifNodeList);
 				//递归处理
 				List<CfgNode> nestedleavesnodelist = new ArrayList<CfgNode>(3);
+				List<CfgCondNode> nestedifnodelist = new ArrayList<CfgCondNode>(1);
 				CfgNode whilebodynode = handleStatement(whilestatement.getBody(), 
-						current, nestedleavesnodelist);
+						current, nestedleavesnodelist, nestedifnodelist);
 				for(CfgNode cfgnode : nestedleavesnodelist){
 					if(cfgnode.type == Type.Break){
 						breakleaves.add(cfgnode);
@@ -360,13 +375,16 @@ public class Cfg {
 						cfgnode.next = current;
 					}
 				}
+				for(CfgCondNode tnode : nestedifnodelist){
+					tnode.merge = current;
+				}
 				((CfgCondNode)current).then = whilebodynode;
 				current.next = null;
 				//如果当前层还没有设置起始节点，那么设置之
 				if(firstNode == null){ firstNode = current; }
 			} else if(astnode instanceof IASTReturnStatement){
 				current = mergeLeaves2CfgNode(Type.Return, 
-						current, astnode,leavesNodeList, breakleaves);
+						current, astnode,leavesNodeList, breakleaves, ifNodeList);
 				//如果当前层还没有设置起始节点，那么设置之
 				if(firstNode == null){ firstNode = current; }
 				//如果在return语句后面还有句子的话，那么无论怎么线性拟合都不可能完全覆盖
@@ -378,8 +396,8 @@ public class Cfg {
 				//this.nodeList.add(contnnode);
 				//current.next = contnnode;
 				//current = contnnode;
-				current = mergeLeaves2CfgNode(Type.Continue, 
-						current, astnode,leavesNodeList, breakleaves);
+				current = mergeLeaves2CfgNode(Type.Continue, current, astnode,
+						leavesNodeList, breakleaves, ifNodeList);
 				//如果当前层还没有设置起始节点，那么设置之
 				if(firstNode == null){ firstNode = current; }
 			} else if(astnode instanceof IASTBreakStatement){
@@ -388,13 +406,13 @@ public class Cfg {
 				//current.next = breaknode;
 				//current = breaknode;
 				current = mergeLeaves2CfgNode(Type.Break, 
-						current, astnode,leavesNodeList, breakleaves);
+						current, astnode,leavesNodeList, breakleaves, ifNodeList);
 				//如果当前层还没有设置起始节点，那么设置之
 				if(firstNode == null){ firstNode = current; }
 			} else {
 				if(current.type != Type.Normal){
-					current = mergeLeaves2CfgNode(Type.Normal, 
-							current, astnode,leavesNodeList, breakleaves);
+					current = mergeLeaves2CfgNode(Type.Normal, current, astnode,
+							leavesNodeList, breakleaves, ifNodeList);
 					current.isSingle = statementNodeList.length == 1;
 					//如果当前层还没有设置起始节点，那么设置之
 					if(firstNode == null){ firstNode = current; }
@@ -423,7 +441,8 @@ public class Cfg {
 	 * @param brkLeavesNodeList 当前层循环体内部break叶子列表
 	 * */
 	private CfgNode mergeLeaves2CfgNode(Type type, CfgNode current, IASTNode astnode,
-			List<CfgNode> leavesNodeList, List<CfgNode> brkLeavesNodeList){
+			List<CfgNode> leavesNodeList, List<CfgNode> brkLeavesNodeList,
+			List<CfgCondNode> ifNodeList){
 		CfgNode newnode = null;
 		if(type == Type.CondIf || type == Type.CondLoop){
 			//保证astnode是一个IASTExpression
@@ -433,12 +452,18 @@ public class Cfg {
 			newnode = new CfgNode(type, current, astnode);
 		}
 		this.nodeList.add(newnode);
+		
+		for(CfgCondNode inode : ifNodeList){
+			inode.merge = newnode;
+		}
+		ifNodeList.clear();
+		
 		if(current.type == Type.CondIf){
 			if(current.next == null){//不存在else从句
 				current.next = newnode;
 			} else {
 			//这一句会导致在遍历current的分支时merge也被赋值成分支节点，因此需要下面的for循环合并节点时重新设置
-				((CfgCondNode)current).merge = newnode;
+				//((CfgCondNode)current).merge = newnode;
 			}
 		} else {
 			current.next = newnode;
@@ -452,7 +477,7 @@ public class Cfg {
 			for(CfgNode cfgnode : leavesNodeList){
 				cfgnode.next = newnode;
 				if(cfgnode.type == Type.CondIf){
-					((CfgCondNode)cfgnode).merge = newnode;
+					//((CfgCondNode)cfgnode).merge = newnode;
 				}
 			}
 			leavesNodeList.clear();
@@ -468,7 +493,7 @@ public class Cfg {
 					rmnodelist.add(cfgnode);
 					cfgnode.next = newnode;
 					if(cfgnode.type == Type.CondIf){
-						((CfgCondNode)cfgnode).merge = newnode;
+						//((CfgCondNode)cfgnode).merge = newnode;
 					}
 				}
 			}

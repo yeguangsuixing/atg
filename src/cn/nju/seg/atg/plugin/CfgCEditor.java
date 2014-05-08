@@ -2,13 +2,21 @@ package cn.nju.seg.atg.plugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.eclipse.cdt.internal.ui.editor.CEditor;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jface.text.Position;
+import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.CompositeRuler;
+import org.eclipse.jface.text.source.IAnnotationModel;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.IVerticalRuler;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IEditorSite;
+import org.eclipse.ui.PartInitException;
 
 import cn.nju.seg.atg.cfg.CfgCondNode;
 import cn.nju.seg.atg.cfg.CfgNode;
@@ -19,6 +27,8 @@ import cn.nju.seg.atg.plugin.AtgView.IPathShower;
 @SuppressWarnings("restriction")
 public class CfgCEditor extends CEditor implements IPathShower {
 
+	private static final String RES_ID_CFG_NODE =
+			"cn.nju.seg.atg.TextEditor.AtgNode";
 
 	/** CFG图的起始x偏移量 */
 	/*default*/ static final int INTENTAITION = 15;
@@ -82,7 +92,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		}
 	}
 
-
+	
 	
 	/**
 	 * 递归设置节点信息
@@ -244,14 +254,16 @@ public class CfgCEditor extends CEditor implements IPathShower {
 			//List<Node> innerleaves = new ArrayList<Node>(3);
 			GraphNode childblock = handleCfgNode(condnode.getThen(), fornode,
 					fornode, fornode, condnode.getNext(), null, reachable);
-			GraphNode child = handleCfgNode(condnode.getNext(), lastForNode, 
-					baseNode, fornode, stopNode, leaves, reachable);
+			GraphNode child = null;
+			if(condnode.getNext() != stopNode){
+				child = handleCfgNode(condnode.getNext(), lastForNode, 
+						baseNode, fornode, stopNode, leaves, reachable);
+			}
 			fornode.then = childblock;
 			fornode.next = child;
-			int childblockwidth = 0, childblockline= 0;
-			if(child != null){
-				childblockwidth = childblock.width;
-				childblockline = childblock.line;
+			int childblockwidth = childblock.width, childblockline= childblock.line;
+			if(child == null){
+				leaves.add(fornode);
 			}
 			if(childblockline == fornode.line){//TODO
 				fornode.width = SINGLE_NODE_WIDTH + childblockwidth;
@@ -336,17 +348,48 @@ public class CfgCEditor extends CEditor implements IPathShower {
 				new ArrayList<GraphNode>(), //empty list-no child
 				true //reachable
 		);
+		this.fCfgRulerColumn.fPaintingPanel.setWidth(
+				CfgCEditor.INTENTAITION*2 + this.fRoot.width);
 		this.fCfgRulerColumn.setGraphRoot(fRoot);
 	}
 	
+
+	/** 标注模型 */
+	private IAnnotationModel fAnnotationModel;
+	/** 标记列表 */
+	private List<Annotation> fAnnotationList = new ArrayList<Annotation>();
+
 	/**
 	 * 显示路径
 	 * */
 	@Override
 	public void showPath(CfgPath path){
+		clearAnnotations();
+		for(CfgNode node : path.getPath()){
+			Set<Entry<Integer, Integer>> set = node.getSrcMapSet();
+			for(Entry<Integer, Integer> entry : set){
+				Annotation annotation = new Annotation( RES_ID_CFG_NODE, 
+						true, node.toString());
+				Position pos = new Position(entry.getKey(), entry.getValue());
+				this.fAnnotationModel.addAnnotation(annotation, pos);
+				this.fAnnotationList.add(annotation);
+			}
+		}
+		
+		
 		this.fCfgRulerColumn.fPaintingPanel.setFocusPath(path);
 		updateUi();
 	}
+	
+	/** 清空所有标注 */
+	public void clearAnnotations(){
+		this.fAnnotationModel = getViewer().getAnnotationModel();
+		for(Annotation an : fAnnotationList){
+			this.fAnnotationModel.removeAnnotation(an);
+		}
+		this.fAnnotationList.clear();
+	}
+
 	
 	/** 更新标尺 */
 	public void updateUi(){
@@ -360,6 +403,12 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		AtgActivator.getDefault().fAtg.updateCfg();
 		updateData(AtgActivator.getDefault().fAtg.getCfgEntry());
 		updateUi();
+	}
+	
+	public void init(IEditorSite site, IEditorInput input) 
+			throws PartInitException{
+		super.init(site, input);
+		AtgActivator.getDefault().fAtg.updateCfg();
 	}
 }
 

@@ -14,6 +14,7 @@ import org.eclipse.cdt.core.model.IFunctionDeclaration;
 import org.eclipse.cdt.core.model.ITranslationUnit;
 import org.eclipse.cdt.internal.core.model.ASTStringUtil;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 import cn.nju.seg.atg.cfg.Cfg;
 import cn.nju.seg.atg.cfg.CfgCondNode;
@@ -26,6 +27,8 @@ import cn.nju.seg.atg.cppmanager.CppManager.CompileResult;
 import cn.nju.seg.atg.cppmanager.CppManager.IstrumentResult;
 import cn.nju.seg.atg.cppmanager.CppManager.LoadResult;
 import cn.nju.seg.atg.model.Interval;
+import cn.nju.seg.atg.plugin.AtgActivator;
+import cn.nju.seg.atg.plugin.PreferenceConstants;
 
 
 /**
@@ -54,6 +57,8 @@ public class Atg {
 	private IASTFunctionDefinition ast;
 	/** 控制流程图类 */
 	private Cfg cfg;
+	/** 上一次的动态库输出文件名 */
+	private String lastOutFileName;
 	
 	private CppManager cppManager;
 	
@@ -74,31 +79,40 @@ public class Atg {
 	/** 参数起始长度 */
 	private static final double PARA_BASE_LENGTH = PARA_MAX_STEP * 2;
 	
-	private static final int PARA_NR_DETECT = 10000;
-	
 	
 	private static final String ERR_NOT_FIND_FUNC = 
 			"Error: Cannot find the function \"%s\".";
 	private static final String ERR_STATE =
 			"Error: State error.";
 	private static final String ERR_INSTRUMENT =
-			"Error: Instrumenting Failed!(%s)";
+			"Error: Instrumenting failed!(%s)";
 	private static final String ERR_COMPILE =
-			"Error: Compiling Failed!(%s)";
+			"Error: Compiling failed!(%s)";
 	private static final String ERR_LOAD =
 			"Error: Loading Failed!(%s)";
 	private static final String ERR_RUN =
 			"Error: Running Failed!(%s)";
-	
+	private static final String ERR_RUNNING =
+			"Error: One Atg instance is running.";
+	private static final String ERR_NOT_RUNNING =
+			"Error: No Atg instance is running.";
+	private static final String ERR_UPDATE_CFG_FAILED =
+			"Error: Updating CFG failed.";
 	
 	public static interface IArgDataViewer {
-		public void showAllPathsData(List<CfgPath> pathList, boolean ansyUpdate);
+		/**
+		 * 显示所有CFG路径
+		 * @param pathList 所有路径
+		 * @param paraSigt 参数签名数组
+		 * @param asynUpdate 是否异步刷新
+		 * */
+		public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean ansyUpdate);
+	}
+	public static interface IMsgShower {
+		public void showMsg(String msg);
 	}
 	
 	IArgDataViewer dataViewer;
-	
-	/** cfg绘制面板 */
-	//private ICfgPaintingPanel cfgPanel;
 	
 	/** 当前生成器状态 */
 	private enum State {
@@ -159,6 +173,11 @@ public class Atg {
 			fState = State.Ast;
 			return false;
 		}
+
+		this.allPathList = this.cfg.getAllPaths();
+		if(dataViewer != null) {
+			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
+		}
 		fState = State.Cfg;
 		return true;
 		
@@ -175,6 +194,10 @@ public class Atg {
 	 * @return 是否设置成功
 	 *  */
 	public boolean setFunctionDeclaration(IFunctionDeclaration func){
+		if(fState == State.Generating){
+			console.println(ERR_RUNNING);
+			return false;
+		}
 		if(fState.id >= State.Ready.id
 				&& fState != State.Generating 
 				&& fState != State.Released){
@@ -200,6 +223,7 @@ public class Atg {
 	}
 	/** 从函数声明获取对应的函数AST */
 	private IASTFunctionDefinition getAst(){
+		if(this.function == null) return null;
 		ITranslationUnit unit = this.function.getTranslationUnit();
 		IASTTranslationUnit funcunitast = null;
 		try {
@@ -300,6 +324,10 @@ public class Atg {
 		if(!this.cfg.generateCfg()){
 			return false;
 		}
+		this.allPathList = this.cfg.getAllPaths();
+		if(dataViewer != null) {
+			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
+		}
 		fState = State.Cfg;
 		return true;
 	}
@@ -310,7 +338,8 @@ public class Atg {
 	 * <li>(2). 编译插桩后的程序为动态库</li>
 	 * <li>(3). 加载编译后的动态库 </li>
 	 * */
-	public boolean pretreatment(){
+	public boolean pretreatment(String outfilename){
+		lastOutFileName = outfilename;
 		if(fState != State.Cfg){
 			console.println(ERR_STATE);
 			return false;
@@ -323,7 +352,7 @@ public class Atg {
 			return false;
 		}
 		//2. 编译
-		CompileResult cr = this.cppManager.compile(ir.outputFilenName);
+		CompileResult cr = this.cppManager.compile(ir.outputFilenName, outfilename);
 		if(!cr.succeed){
 			console.println(String.format(ERR_COMPILE, cr.msg));
 			return false;
@@ -353,8 +382,7 @@ public class Atg {
 			console.println(ERR_STATE);
 			return;
 		}
-		
-		allPathList = this.cfg.getAllPaths();
+	
 		//*
 		generateThread = new Thread(new Runnable(){
 			@Override
@@ -363,43 +391,13 @@ public class Atg {
 				fState = State.Generating;
 				geneTestData(allPathList);
 				if(dataViewer != null) {
-					dataViewer.showAllPathsData(allPathList, true);
+					dataViewer.showAllPathsData(allPathList, paraSigtArray, true);
 				}
 				fState = State.Finished;
 			}
 		});
 		generateThread.start();//*/
-/*
-		this.atgUi.clearAllAnnotations();
-		if(pathList.size() > 0){
-			CfgPath path = pathList.get(0);
-			cfgPanel.setFocusPath(path);
-			for(CfgNode node : path.getPath()){
-				Set<Entry<Integer, Integer>> set = node.srcMap.entrySet();
-				for(Entry<Integer, Integer> entry : set){
-					this.atgUi.addAnnotation(null, entry.getKey(), entry.getValue());
-				}
-			}
-		}//*/
-		
-		/*
-		console.println("路径总数："+pathList.size());
-		console.println("覆盖路径数："+coverredCount);
-		for(CfgPath path : pathList){
-			console.println(String.format(
-					"path %d: 覆盖-%s, 最长覆盖-%d, %s", path.getId(), 
-					path.isCoverred(), path.getCoverredNodeCount(), 
-					path.getPathString()));
-			List<Object[]> parasl = path.getParasList();
-			for(Object[] t : parasl){
-				for(Object o : t){
-					console.print(o);
-					console.print(",");
-				}
-				console.println();
-			}
-		}//*/
-		
+
 		
 	}
 
@@ -414,30 +412,51 @@ public class Atg {
 	/**
 	 * 一“键”运行
 	 * */
-	public void run(){
-		updateCfg();
-		pretreatment();
+	public void run(IMsgShower shower){
+		if(fState == State.Generating){
+			if(shower != null){
+				shower.showMsg(ERR_RUNNING);
+			}
+			return;
+		}
+		if(!updateCfg()){
+			if(shower != null){
+				shower.showMsg(ERR_UPDATE_CFG_FAILED);
+			}
+		}
+		if(lastOutFileName == null || !pretreatment(lastOutFileName)){
+			return;
+		}
 		generateData();
 	}
 	
 	/** 暂停当前的生成数据操作/向C++运行服务器发送暂停命令 */
 	@SuppressWarnings("deprecation")
-	public void pause(){
+	public void pause(IMsgShower shower){
 		if(fState != State.Generating){
+			if(shower != null){
+				shower.showMsg(ERR_NOT_RUNNING);
+			}
 			return;
 		}
 		generateThread.suspend();//dangerous
 	}
 
-	/** 停止当前的生成数据操作/向C++运行服务器发送停止+卸载命令 */
+	/** 
+	 * 停止当前的生成数据操作
+	 * 
+	 *  */
 	@SuppressWarnings("deprecation")
-	public void stop(){
+	public void stop(IMsgShower shower){
 		if(fState != State.Generating){
+			if(shower != null){
+				shower.showMsg(ERR_NOT_RUNNING);
+			}
 			return;
 		}
 		generateThread.stop();//dangerous
 		if(dataViewer != null) {
-			dataViewer.showAllPathsData(allPathList, false);
+			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
 		}
 		fState = State.Finished;
 	}
@@ -452,11 +471,12 @@ public class Atg {
 			console.println(ERR_STATE);
 			return new ArrayList<CfgPath>(0);
 		}
-		return this.cfg.getAllPaths();
+		return this.allPathList;
 	}
 	
 	/** 获取CFG的入口 */
 	public CfgNode getCfgEntry(){
+		if(this.cfg == null) return null;
 		return this.cfg.getEntry();
 	}
 	
@@ -468,6 +488,10 @@ public class Atg {
 		 * 		对于每一条路径，对每一个参数作测试数据生成
 		 * }
 		 * */
+		IPreferenceStore store = AtgActivator.getDefault().getPreferenceStore();
+		//对于每个参数，所需要遍历的轮数
+		int circle = store.getInt(PreferenceConstants.NR_CIRCLE);
+		int detect = store.getInt(PreferenceConstants.NR_DETECT);
 		List<CfgNode> nodeList = this.cfg.getAllNodes();
 		int coverredcount = 0;//记录覆盖路径数
 		for(CfgPath targetpath : pathList){
@@ -488,14 +512,19 @@ public class Atg {
 			}
 			//控制变量：每次选择一个变量（参数），保持其他参数不变
 			for(int paraIndex = 0; paraIndex < this.paraCount; paraIndex ++){
-				//清除节点中的坐标信息
-				for(CfgNode node : nodeList) {
-					if(!node.isCondType()) continue;
-					((CfgCondNode)node).clearAllNodesPoints();
+				for(int i = 0; i < circle; i ++){
+					//清除节点中的坐标信息
+					for(CfgNode node : nodeList) {
+						if(!node.isCondType()) continue;
+						((CfgCondNode)node).clearAllNodesPoints();
+					}
+					geneTestDataByPathAndPara(pathList, targetpath, paraIndex, detect);
+					if(targetpath.isCoverred()){
+						++coverredcount;
+						break;//如果已经覆盖，那么直接进入下一条路径
+					}
 				}
-				geneTestDataByPathAndPara(pathList, targetpath, paraIndex);
 				if(targetpath.isCoverred()){
-					++coverredcount;
 					break;//如果已经覆盖，那么直接进入下一条路径
 				}
 			}
@@ -507,7 +536,7 @@ public class Atg {
 	
 	/** 根据指定的目标路径和参数生成测试数据 */
 	private void geneTestDataByPathAndPara(List<CfgPath> pathList, 
-			CfgPath targetpath, int paraIndex){
+			CfgPath targetpath, int paraIndex, int detectCount){
 		//测试参数数组
 		Object[] paraArray = null;
 
@@ -535,7 +564,8 @@ public class Atg {
 		}
 		maxInterval.updateLength();
 		
-		int totalgenecount = PARA_NR_DETECT;
+
+		int totalgenecount = detectCount;
 		while(totalgenecount-- > 0){
 			
 			/******************************************************************
@@ -620,9 +650,11 @@ public class Atg {
 				PARA_BASE_LEFT_BOUNDARY + PARA_BASE_LENGTH);
 		Object[] paras = new Object[this.paraCount];
 		for(int i = 0; i < this.paraCount; i ++){
-			//TODO 这里我们只处理double类型
+			//TODO 这里我们只处理float类型和double类型
 			//if(this.paraSigtArray[i].equals("double")){
-			if(this.paraSigtArray[i].startsWith("double")){//对于带有默认值的参数来说，对应字符串类似"double=3"
+			if(this.paraSigtArray[i].startsWith("float")
+					|| this.paraSigtArray[i].startsWith("double")){
+				//对于带有默认值的参数来说，对应字符串类似"double=3"
 				if(i == paraIndex ||paraArray == null 
 						|| paraArray[i] == null ){
 					paras[i] = paraGeneInterval.getRandom();

@@ -174,7 +174,7 @@ public class CfgRulerColumn implements IVerticalRulerColumn {
 
 	@Override
 	public int getWidth() {
-		return 180;
+		return fPaintingPanel.getWidth();
 	}
 
 	@Override
