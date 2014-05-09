@@ -206,13 +206,13 @@
                id="cn.nju.seg.atg.toolbars">
             <command
                   commandId="cn.nju.seg.atg.commands.run"
-                  icon="icons/coffee.ico"
+                  icon="icons/run.png"
                   tooltip="Run Atg"
                   id="cn.nju.seg.atg.toolbars.run">
             </command>
             <command
                   commandId="cn.nju.seg.atg.commands.stop"
-                  icon="icons/data.ico"
+                  icon="icons/stop.png"
                   tooltip="Stop Atg"
                   id="cn.nju.seg.atg.toolbars.stop">
             </command>

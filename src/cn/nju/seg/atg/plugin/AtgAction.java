@@ -5,11 +5,9 @@ package cn.nju.seg.atg.plugin;
 import java.io.PrintStream;
 
 import org.eclipse.cdt.core.model.IFunctionDeclaration;
-import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchPart;
@@ -71,18 +69,7 @@ public class AtgAction implements IObjectActionDelegate {
 			fCfgCEditor.updateUi();
 		}
 		
-		//生成动态库文件路径
-		String outfilename = null;
-		IFile ifile = ((IFileEditorInput)(fCfgCEditor.getEditorInput())).getFile();
-		String cppfilename = ifile.getLocationURI().getPath();//.getName();
-		int index = cppfilename.lastIndexOf(".");
-		if(index < 0){
-			outfilename = cppfilename + ".so";
-		} else {
-			outfilename = cppfilename.substring(0, index) + ".so";
-		}
-		
-		atg.pretreatment(outfilename);
+		atg.pretreatment(fCfgCEditor.getCurrentCppFilePath());
 		atg.generateData();
 		//atg.posttreatment();
 		

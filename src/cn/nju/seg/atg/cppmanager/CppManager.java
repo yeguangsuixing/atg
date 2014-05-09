@@ -145,13 +145,12 @@ public class CppManager {
 	
 	/**
 	 * 编译一个C++文件
-	 * @param cppfilename 要编译的c++文件名
-	 * @param outfilename 输出文件名
+	 * @param cppfilename 要编译的c++文件名(已插桩)
 	 * @return 是否编译成功
 	 * */
-	public CompileResult compile(String cppfilename, String outfilename){
+	public CompileResult compile(String cppfilename){
 		CompileResult cr = new CompileResult();
-		cr.sofileName = outfilename;
+		cr.sofileName = CppManager.generateSoFileName(cppfilename);
 		Process p = null;
 		cr.startTime = new Date();
 		try {
@@ -183,6 +182,15 @@ public class CppManager {
 		return cr;
 	}
 	
+	private static String generateSoFileName(String cppfilename){
+		int index = cppfilename.lastIndexOf(".");
+		if(index < 0){
+			return cppfilename + ".so";
+		} else {
+			return cppfilename.substring(0, index) + ".so";
+		}
+	}
+	
 	/**
 	 * 根据给定的控制流对象对一个cpp文件进行插桩
 	 * @param cppfilename 要插桩的cpp文件绝对路径
@@ -199,7 +207,7 @@ public class CppManager {
 		File cppfile = new File(cppUri);
 		String outfilename = cppfile.getParent()
 				+ File.separator
-				+generateSoFileName(cppfile.getName());
+				+ CppManager.generateInstrFileName(cppfile.getName());
 		ir.outputFilenName = outfilename;
 		if(outfilename.length() > 255){
 			ir.msg = "Cpp Uri is too long(>255)! ";
@@ -327,8 +335,8 @@ public class CppManager {
 		return ir;
 	}
 	
-	/** 生成共享对象文件名 */
-	private String generateSoFileName(String originFileName){
+	/** 生成插桩后文件名 */
+	private static String generateInstrFileName(String originFileName){
 		String dstname;
 		int index = originFileName.indexOf(".");
 		String suffix = "_instr_"+DATE_FMT.format(new Date());

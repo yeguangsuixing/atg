@@ -57,8 +57,8 @@ public class Atg {
 	private IASTFunctionDefinition ast;
 	/** 控制流程图类 */
 	private Cfg cfg;
-	/** 上一次的动态库输出文件名 */
-	private String lastOutFileName;
+	/** 上一次操作的Cpp源文件名 */
+	private String lastCppFileName;
 	
 	private CppManager cppManager;
 	
@@ -338,8 +338,8 @@ public class Atg {
 	 * <li>(2). 编译插桩后的程序为动态库</li>
 	 * <li>(3). 加载编译后的动态库 </li>
 	 * */
-	public boolean pretreatment(String outfilename){
-		lastOutFileName = outfilename;
+	public boolean pretreatment(String cppfilename){
+		lastCppFileName = cppfilename;
 		if(fState != State.Cfg){
 			console.println(ERR_STATE);
 			return false;
@@ -352,7 +352,7 @@ public class Atg {
 			return false;
 		}
 		//2. 编译
-		CompileResult cr = this.cppManager.compile(ir.outputFilenName, outfilename);
+		CompileResult cr = this.cppManager.compile(ir.outputFilenName);
 		if(!cr.succeed){
 			console.println(String.format(ERR_COMPILE, cr.msg));
 			return false;
@@ -411,8 +411,10 @@ public class Atg {
 	
 	/**
 	 * 一“键”运行
+	 * @param shower 错误显示器
+	 * @param cppfileName 源文件名
 	 * */
-	public void run(IMsgShower shower){
+	public void run(IMsgShower shower, String cppfileName){
 		if(fState == State.Generating){
 			if(shower != null){
 				shower.showMsg(ERR_RUNNING);
@@ -424,7 +426,7 @@ public class Atg {
 				shower.showMsg(ERR_UPDATE_CFG_FAILED);
 			}
 		}
-		if(lastOutFileName == null || !pretreatment(lastOutFileName)){
+		if(!pretreatment(lastCppFileName)){
 			return;
 		}
 		generateData();

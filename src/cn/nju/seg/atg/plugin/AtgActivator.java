@@ -97,6 +97,7 @@ public class AtgActivator extends AbstractUIPlugin {
 		}
 		return cfgCEditor;
 	}
+	
 
 }
 

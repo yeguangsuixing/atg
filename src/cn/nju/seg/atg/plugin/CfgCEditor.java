@@ -6,6 +6,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.eclipse.cdt.internal.ui.editor.CEditor;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -14,9 +15,7 @@ import org.eclipse.jface.text.source.IAnnotationModel;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.IVerticalRuler;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.ui.IEditorInput;
-import org.eclipse.ui.IEditorSite;
-import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.IFileEditorInput;
 
 import cn.nju.seg.atg.cfg.CfgCondNode;
 import cn.nju.seg.atg.cfg.CfgNode;
@@ -398,17 +397,19 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		this.fCfgRulerColumn.redraw();
 	}
 	
+	
+	
 	public void doSave(IProgressMonitor progressMonitor){
 		super.doSave(progressMonitor);
 		AtgActivator.getDefault().fAtg.updateCfg();
 		updateData(AtgActivator.getDefault().fAtg.getCfgEntry());
 		updateUi();
 	}
-	
-	public void init(IEditorSite site, IEditorInput input) 
-			throws PartInitException{
-		super.init(site, input);
-		AtgActivator.getDefault().fAtg.updateCfg();
+
+	/** 获取当前编辑器所编辑的cpp文件绝对路径 */
+	public String getCurrentCppFilePath(){
+		IFile ifile = ((IFileEditorInput)(getEditorInput())).getFile();
+		return ifile.getLocationURI().getPath();
 	}
 }
 

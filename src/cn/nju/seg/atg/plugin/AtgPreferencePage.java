@@ -1,7 +1,7 @@
 package cn.nju.seg.atg.plugin;
 
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
-import org.eclipse.jface.preference.StringFieldEditor;
+import org.eclipse.jface.preference.IntegerFieldEditor;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -20,25 +20,9 @@ public class AtgPreferencePage extends FieldEditorPreferencePage
 	}
 	
 	public void createFieldEditors() {
-		/*
-		addField(new DirectoryFieldEditor(PreferenceConstants.P_PATH, 
-				"&Directory preference:", getFieldEditorParent()));
-		addField(
-			new BooleanFieldEditor(
-				PreferenceConstants.P_BOOLEAN,
-				"&An example of a boolean preference",
-				getFieldEditorParent()));
-	
-		addField(new RadioGroupFieldEditor(
-				PreferenceConstants.P_CHOICE,
-			"An example of a multiple-choice preference",
-			1,
-			new String[][] { { "&Choice 1", "choice1" }, {
-				"C&hoice 2", "choice2" }
-		}, getFieldEditorParent()));//*/
-		addField( new StringFieldEditor(PreferenceConstants.NR_DETECT, 
+		addField( new IntegerFieldEditor(PreferenceConstants.NR_DETECT, 
 				"Number of D&etect:", getFieldEditorParent()));
-		addField( new StringFieldEditor(PreferenceConstants.NR_CIRCLE, 
+		addField( new IntegerFieldEditor(PreferenceConstants.NR_CIRCLE, 
 				"Number of &Circle:", getFieldEditorParent()));
 	}
 	
@@ -48,3 +32,6 @@ public class AtgPreferencePage extends FieldEditorPreferencePage
 	public void init(IWorkbench workbench) { }
 
 }
+
+
+
