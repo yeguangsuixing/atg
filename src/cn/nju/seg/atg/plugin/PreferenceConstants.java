@@ -13,4 +13,7 @@ public class PreferenceConstants {
 	
 	/** 探测轮数 */
 	public static final String NR_CIRCLE = "NR_CIRCLE";
+	
+	/** 编译命令 */
+	public static final String CMD_COMPILE = "CMD_COMPILE";
 }

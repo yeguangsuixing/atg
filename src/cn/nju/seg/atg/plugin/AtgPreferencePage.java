@@ -2,6 +2,7 @@ package cn.nju.seg.atg.plugin;
 
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
 import org.eclipse.jface.preference.IntegerFieldEditor;
+import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -24,6 +25,8 @@ public class AtgPreferencePage extends FieldEditorPreferencePage
 				"Number of D&etect:", getFieldEditorParent()));
 		addField( new IntegerFieldEditor(PreferenceConstants.NR_CIRCLE, 
 				"Number of &Circle:", getFieldEditorParent()));
+		addField( new StringFieldEditor(PreferenceConstants.CMD_COMPILE, 
+				"Co&mpiling Command:", getFieldEditorParent()));
 	}
 	
 	/* (non-Javadoc)

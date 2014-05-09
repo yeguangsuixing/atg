@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -14,7 +15,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.net.URL;
 
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Platform;
@@ -26,6 +26,8 @@ import cn.nju.seg.atg.cfg.CfgConstraintUnit;
 import cn.nju.seg.atg.cfg.CfgNode;
 import cn.nju.seg.atg.cfg.CfgNode.Type;
 import cn.nju.seg.atg.cfg.CfgPath;
+import cn.nju.seg.atg.plugin.AtgActivator;
+import cn.nju.seg.atg.plugin.PreferenceConstants;
 
 
 /**
@@ -89,7 +91,8 @@ public class CppManager {
 			+ "_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
 	private static int FOR_INIT_VAR_NO = 0;
 	
-	private static final String GPP_COMPILE_CMD = "gcc -shared -fpic -o %s %s ";
+	public static final String DEFAULT_CMD_COMPILE = 
+			"gcc -shared -fpic -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
 	
 	private static final DateFormat DATE_FMT = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
 	/**
@@ -126,7 +129,7 @@ public class CppManager {
 			this.loadList.add(null);
 		}
 		try{
-			Bundle bundle = Platform.getBundle("cn.nju.seg.atg");
+			Bundle bundle = Platform.getBundle(AtgActivator.PLUGIN_ID);
 			URL soUrl = bundle.getResource("lib/CppManagerUtil.so");
 			String so = FileLocator.toFileURL(soUrl).getPath();
 			System.load(so);
@@ -153,9 +156,13 @@ public class CppManager {
 		cr.sofileName = CppManager.generateSoFileName(cppfilename);
 		Process p = null;
 		cr.startTime = new Date();
+
+		String compileCmd = AtgActivator.getDefault().getPreferenceStore()
+				.getString(PreferenceConstants.CMD_COMPILE);
+		compileCmd = compileCmd.replace("$OUT_SO_FILE_NAME", cr.sofileName);
+		compileCmd = compileCmd.replace("$CPP_FILE_NAME", cppfilename);
 		try {
-			p = Runtime.getRuntime().exec(
-					String.format(GPP_COMPILE_CMD, cr.sofileName, cppfilename));
+			p = Runtime.getRuntime().exec(compileCmd);
 		} catch (IOException e) {
 			e.printStackTrace();
 			cr.msg = e.getMessage();

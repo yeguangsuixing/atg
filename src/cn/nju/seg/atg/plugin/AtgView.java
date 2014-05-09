@@ -1,9 +1,12 @@
 package cn.nju.seg.atg.plugin;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
@@ -20,6 +23,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
+import org.osgi.framework.Bundle;
 
 import cn.nju.seg.atg.Atg.IArgDataViewer;
 import cn.nju.seg.atg.cfg.CfgPath;
@@ -100,8 +104,18 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	class CfgPathTreeNode extends TreeParent {
 		private CfgPath path;
 		public CfgPathTreeNode(CfgPath path) {
-			super("["+path.getCoverredNodeCount()+"/"+path.length()+"]"+path.getPathString());
+			super(null);
+			if(path == null){
+				this.name = "";
+			} else {				
+				this.name = String.format("[%d/%d]%s", 
+						path.getCoverredNodeCount(),
+						path.length(), path.getPathString());
+			}
 			this.path = path;
+		}
+		public CfgPathTreeNode(String tip){
+			super(tip);
 		}
 	} 
 	/** 参数数据节点 */
@@ -126,6 +140,10 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	class ViewContentProvider implements IStructuredContentProvider, 
 										   ITreeContentProvider {
 
+		public ViewContentProvider(){
+			invisibleRoot = new TreeParent("");
+		}
+		
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
 		}
 		public void dispose() {
@@ -156,33 +174,38 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 				return ((TreeParent)parent).hasChildren();
 			return false;
 		}
-/*
- * We will set up a dummy model to initialize tree heararchy.
- * In a real code, you will connect to a real model and
- * expose its hierarchy.
- */
+
 		private void initialize() {
-			TreeParent root = new TreeParent("Root");
-			invisibleRoot = new TreeParent("");
+			TreeParent root = new CfgPathTreeNode("No Path");
 			invisibleRoot.addChild(root);
 		}
 	}
 	
 	class ViewLabelProvider extends LabelProvider {
 
+		Image pathImage, dataImage;
+		public ViewLabelProvider(){
+			super();
+			Bundle bundle = Platform.getBundle(AtgActivator.PLUGIN_ID);
+			URL url = bundle.getResource("icons/path.png");
+			pathImage = ImageDescriptor.createFromURL(url).createImage();
+			dataImage = PlatformUI.getWorkbench().getSharedImages()
+					.getImage(ISharedImages.IMG_OBJ_ELEMENT);
+		}
+		
 		public String getText(Object obj) {
 			return obj.toString();
 		}
 		public Image getImage(Object obj) {
-			String imageKey = ISharedImages.IMG_OBJ_ELEMENT;
-			if (obj instanceof TreeParent)
-			   imageKey = ISharedImages.IMG_OBJ_FOLDER;
-			return PlatformUI.getWorkbench().getSharedImages().getImage(imageKey);
+			if (obj instanceof CfgPathTreeNode){
+				return pathImage;
+			} else {
+				return dataImage;
+			}
 		}
 	}
 	
-	class NameSorter extends ViewerSorter {
-	}
+	class NameSorter extends ViewerSorter { }
 	
 	/***
 	 * 路径显示器
@@ -224,7 +247,7 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	
 	@Override
 	public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean asynUpdate){
-		invisibleRoot = new TreeParent("");
+		invisibleRoot.removeAllChildren();
 		for(CfgPath path : pathList){
 			CfgPathTreeNode pathnode = new CfgPathTreeNode(path);
 			for(int i = 0; i < path.getParasListSize(); i ++){

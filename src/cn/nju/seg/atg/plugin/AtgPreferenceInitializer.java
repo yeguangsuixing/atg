@@ -3,6 +3,8 @@ package cn.nju.seg.atg.plugin;
 import org.eclipse.core.runtime.preferences.AbstractPreferenceInitializer;
 import org.eclipse.jface.preference.IPreferenceStore;
 
+import cn.nju.seg.atg.cppmanager.CppManager;
+
 
 /**
  * 配置初始化类
@@ -24,6 +26,8 @@ public class AtgPreferenceInitializer extends AbstractPreferenceInitializer {
 		
 		store.setDefault(PreferenceConstants.NR_DETECT, Integer.toString(300));
 		store.setDefault(PreferenceConstants.NR_CIRCLE, Integer.toString(5));
+		store.setDefault(PreferenceConstants.CMD_COMPILE, 
+				CppManager.DEFAULT_CMD_COMPILE);
 	}
 
 }
