@@ -29,11 +29,6 @@ public class AtgStopHandler extends AbstractHandler {
 			}
 		});
 		
-		CfgCEditor cfgCEditor = AtgActivator.getDefault().getCfgCEditor();
-		if(cfgCEditor != null){
-			cfgCEditor.updateData(atg.getCfgEntry());
-			cfgCEditor.updateUi();
-		}
 		return null;
 	}
 }

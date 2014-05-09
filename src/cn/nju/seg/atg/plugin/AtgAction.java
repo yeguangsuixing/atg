@@ -22,14 +22,8 @@ import cn.nju.seg.atg.Atg;
  * */
 public class AtgAction implements IObjectActionDelegate {
 
-	
-	
 	/** 用于标记用户当前选择的内容 */
 	private ISelection fSelection;
-	/** cfg C编辑器 */
-	private CfgCEditor fCfgCEditor;
-	
-	private Atg atg;
 	
 	@Override
 	public void run(IAction action) {
@@ -39,7 +33,7 @@ public class AtgAction implements IObjectActionDelegate {
 		if(!(funcdecln instanceof IFunctionDeclaration)) return;
 
 
-		fCfgCEditor = AtgActivator.getDefault().getCfgCEditor();
+		CfgCEditor cfgCEditor = AtgActivator.getDefault().getCfgCEditor();
 		//IDocumentProvider docprv = ((CEditor)ep).getDocumentProvider();
 		
 		IWorkbenchPage page =  PlatformUI.getWorkbench()
@@ -51,25 +45,18 @@ public class AtgAction implements IObjectActionDelegate {
 					.fConsole.newMessageStream()));
 		}
 		
-		if(atg == null){
-			atg = AtgActivator.getDefault().fAtg;
-		}
+		Atg atg = AtgActivator.getDefault().fAtg;
 		AtgView atgview = (AtgView)page.findView(AtgView.ID);
 		atg.setArgDataViewer(atgview);
-		atgview.setPathShower(fCfgCEditor);
+		atg.setCfgViewer(cfgCEditor);
+		atgview.setPathShower(cfgCEditor);
 		
 		//
 		boolean rsl = atg.setFunctionDeclaration((IFunctionDeclaration) funcdecln);
 		if(!rsl) return;
 		rsl = atg.generateCfg(true);
 		if(!rsl) return;
-		
-		if(fCfgCEditor != null){
-			fCfgCEditor.updateData(atg.getCfgEntry());
-			fCfgCEditor.updateUi();
-		}
-		
-		atg.pretreatment(fCfgCEditor.getCurrentCppFilePath());
+		atg.pretreatment(cfgCEditor.getCurrentCppFilePath());
 		atg.generateData();
 		//atg.posttreatment();
 		

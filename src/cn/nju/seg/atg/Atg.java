@@ -64,7 +64,6 @@ public class Atg {
 	
 	private LoadResult loadSoObject;
 	
-	private List<CfgPath> allPathList;
 	
 	/** 测试数据生成线程 */
 	private Thread generateThread;
@@ -108,11 +107,19 @@ public class Atg {
 		 * */
 		public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean ansyUpdate);
 	}
+	public static interface ICfgViewer {
+		/**
+		 * 更新CFG
+		 * @param cfgEntry 控制流图入口
+		 * */
+		public void updateCfg(CfgNode cfgEntry);
+	}
 	public static interface IMsgShower {
 		public void showMsg(String msg);
 	}
 	
 	IArgDataViewer dataViewer;
+	ICfgViewer cfgViewer;
 	
 	/** 当前生成器状态 */
 	private enum State {
@@ -173,11 +180,7 @@ public class Atg {
 			fState = State.Ast;
 			return false;
 		}
-
-		this.allPathList = this.cfg.getAllPaths();
-		if(dataViewer != null) {
-			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
-		}
+		updateUi(false, false);
 		fState = State.Cfg;
 		return true;
 		
@@ -186,6 +189,11 @@ public class Atg {
 	/** 设置路径数据显示器 */
 	public void setArgDataViewer(IArgDataViewer dataViewer){
 		this.dataViewer = dataViewer;
+	}
+	
+	/** 设置控制流图显示器 */
+	public void setCfgViewer(ICfgViewer viewer){
+		this.cfgViewer = viewer;
 	}
 	
 	/** 
@@ -324,10 +332,7 @@ public class Atg {
 		if(!this.cfg.generateCfg()){
 			return false;
 		}
-		this.allPathList = this.cfg.getAllPaths();
-		if(dataViewer != null) {
-			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
-		}
+		updateUi(false, false);
 		fState = State.Cfg;
 		return true;
 	}
@@ -382,23 +387,18 @@ public class Atg {
 			console.println(ERR_STATE);
 			return;
 		}
-	
-		//*
+		updateUi(false, false);
 		generateThread = new Thread(new Runnable(){
 			@Override
 			public void run() {
-				//生成测试数据
 				fState = State.Generating;
-				geneTestData(allPathList);
-				if(dataViewer != null) {
-					dataViewer.showAllPathsData(allPathList, paraSigtArray, true);
-				}
+				//生成测试数据
+				geneTestData(cfg.getAllPaths());
+				updateUi(true, true);
 				fState = State.Finished;
 			}
 		});
-		generateThread.start();//*/
-
-		
+		generateThread.start();
 	}
 
 	/** 5. 后处理：释放资源 */
@@ -458,28 +458,20 @@ public class Atg {
 		}
 		generateThread.stop();//dangerous
 		if(dataViewer != null) {
-			dataViewer.showAllPathsData(allPathList, paraSigtArray, false);
+			dataViewer.showAllPathsData(cfg.getAllPaths(), paraSigtArray, false);
 		}
 		fState = State.Finished;
 	}
 	
-
-	/** 
-	 * 获取所有CFG路径
-	 * @return 当前CFG的所有路径
-	 *  */
-	public List<CfgPath> getAllPaths(){
-		if(fState.id < State.Cfg.id) {
-			console.println(ERR_STATE);
-			return new ArrayList<CfgPath>(0);
+	/** 更新界面 */
+	private void updateUi(boolean asynUpdate, boolean dataOnly){
+		if(dataViewer != null) {
+			dataViewer.showAllPathsData(this.cfg.getAllPaths(), paraSigtArray, asynUpdate);
 		}
-		return this.allPathList;
-	}
-	
-	/** 获取CFG的入口 */
-	public CfgNode getCfgEntry(){
-		if(this.cfg == null) return null;
-		return this.cfg.getEntry();
+		if(dataOnly) return;
+		if(this.cfgViewer != null){
+			cfgViewer.updateCfg(this.cfg.getEntry());
+		}
 	}
 	
 	/** 生成测试数据 */

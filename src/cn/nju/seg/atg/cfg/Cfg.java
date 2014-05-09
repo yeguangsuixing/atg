@@ -136,6 +136,7 @@ public class Cfg {
 		for(CfgCondNode node : this.condNodeList){
 			node.handleExpression();
 		}
+		this.allPathList = this._getAllPaths();
 		return true;
 	}
 	
@@ -200,6 +201,11 @@ public class Cfg {
 	 * @return 返回所有路径的列表
 	 * */
 	public List<CfgPath> getAllPaths(){
+		return allPathList;
+	}
+	
+
+	private List<CfgPath> _getAllPaths(){
 		for(CfgNode cfgnode : nodeList){
 			cfgnode.resetCoveredLeft();
 		}

@@ -120,11 +120,12 @@ public class CfgPaintingPanel {
 	/** 绘制普通线条 */
 	private void drawLine(GC gc, GraphNode curNode, GraphNode lastNode){
 		if(lastNode == null || !curNode.reachable) return;
-		
+		boolean execline = this.isFocusNode(curNode) 
+				&& curNode.execPrev == lastNode;
 		boolean drawback = false;
 		if(lastNode.type == NodeType.Loop && curNode == lastNode.next){
 			Color oldfgc = gc.getForeground();
-			if(this.isFocusNode(curNode) && this.isFocusNode(lastNode)){
+			if(execline){
 				gc.setForeground(EXEC_COLOR);
 			} else {
 				gc.setForeground(FOR_FRAME_LINE_COLOR);
@@ -140,7 +141,7 @@ public class CfgPaintingPanel {
 		}
 		
 		Color oldfgc = gc.getForeground();
-		if(this.isFocusNode(curNode) && this.isFocusNode(lastNode)){
+		if(execline){
 			gc.setForeground(EXEC_COLOR);
 		}
 		if(lastNode.type == NodeType.If 
@@ -159,7 +160,7 @@ public class CfgPaintingPanel {
 		} else if(!drawback){
 			gc.drawLine(curNode.x, curNode.y, lastNode.x, lastNode.y);
 		}
-		if(this.isFocusNode(curNode) && this.isFocusNode(lastNode)){
+		if(execline){
 			gc.setForeground(oldfgc);
 		}
 	}

@@ -1,7 +1,9 @@
 package cn.nju.seg.atg.plugin;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -17,6 +19,7 @@ import org.eclipse.jface.text.source.IVerticalRuler;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IFileEditorInput;
 
+import cn.nju.seg.atg.Atg.ICfgViewer;
 import cn.nju.seg.atg.cfg.CfgCondNode;
 import cn.nju.seg.atg.cfg.CfgNode;
 import cn.nju.seg.atg.cfg.CfgNode.Type;
@@ -24,7 +27,7 @@ import cn.nju.seg.atg.cfg.CfgPath;
 import cn.nju.seg.atg.plugin.AtgView.IPathShower;
 
 @SuppressWarnings("restriction")
-public class CfgCEditor extends CEditor implements IPathShower {
+public class CfgCEditor extends CEditor implements IPathShower, ICfgViewer {
 
 	private static final String RES_ID_CFG_NODE =
 			"cn.nju.seg.atg.TextEditor.AtgNode";
@@ -38,6 +41,8 @@ public class CfgCEditor extends CEditor implements IPathShower {
 
 	/** 根节点 */
 	private GraphNode fRoot;
+	
+	private Map<CfgNode,GraphNode> nodeMap = new HashMap<CfgNode,GraphNode>();
 	
 	private List<GraphNode> allNodesList = new ArrayList<GraphNode>();
 	
@@ -75,6 +80,8 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		public GraphNode merge;
 		
 		public CfgNode cfgNode;
+		
+		public GraphNode execPrev;
 		
 		public GraphNode(CfgNode cfgnode, GraphNode parent, NodeType type, 
 				int width, boolean reachable){
@@ -115,6 +122,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		if(cfgNode.getType() == Type.Normal){
 			GraphNode newnode = new GraphNode(cfgNode, parentNode, NodeType.Normal,
 					SINGLE_NODE_WIDTH, reachable);
+			this.nodeMap.put(cfgNode, newnode);
 			if(leaves != null && leaves.size() > 0){
 				for(GraphNode node : leaves) {
 					//node.next = newnode;
@@ -159,6 +167,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 			CfgCondNode condnode = (CfgCondNode)cfgNode;
 			GraphNode ifnode = new GraphNode(cfgNode, parentNode, NodeType.If, 
 					0, reachable);
+			this.nodeMap.put(cfgNode, ifnode);
 			if(condnode.merge == null){
 				condnode.merge = condnode.getNext();
 			}
@@ -209,7 +218,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 			if(ifnode.next == null){
 				ifnode.next = child;
 			}
-			int childwidth = 0, childline= 0;
+			int childwidth = SINGLE_NODE_WIDTH, childline= 0;
 			if(child != null){
 				childwidth = child.width;
 				childline = child.line;
@@ -219,18 +228,17 @@ public class CfgCEditor extends CEditor implements IPathShower {
 					ifnode.width = SINGLE_NODE_WIDTH + childthen.width
 							+ childwidth;//TODO 
 				} else {
-					ifnode.width = SINGLE_NODE_WIDTH
-							+ childthen.width;
+					ifnode.width = childwidth + childthen.width;
 				}
 			} else {//如果存在else分支
 				if(ifnode.line == childelse.line){
-					//else节点与if分支节点处于同一行，说明then节点也在这一行
+					//TODO else节点与if分支节点处于同一行，说明then节点也在这一行
 					//向左右两边扩展宽度
 					ifnode.width = childelse.width + SINGLE_NODE_WIDTH
-							+ childthen.width;//TODO
+							+ childthen.width;//
 				} else {//else节点与if分支节点处于不同行
 					if(childthen.line == childelse.width){
-						//TODO 
+						//TODO 同一行如何处理
 						ifnode.width = childthen.width + childelse.width;
 					} else {
 						ifnode.width = childthen.width + childelse.width;
@@ -242,6 +250,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 			CfgCondNode condnode = (CfgCondNode)cfgNode;
 			GraphNode fornode = new GraphNode(cfgNode, parentNode, NodeType.Loop, 
 					0, reachable);
+			this.nodeMap.put(cfgNode, fornode);
 			//合并叶子节点
 			if(leaves != null && leaves.size() > 0){
 				for(GraphNode node : leaves) {
@@ -267,12 +276,14 @@ public class CfgCEditor extends CEditor implements IPathShower {
 			if(childblockline == fornode.line){//TODO
 				fornode.width = SINGLE_NODE_WIDTH + childblockwidth;
 			} else {
-				fornode.width = SINGLE_NODE_WIDTH + childblockwidth;
+				fornode.width = (child == null?SINGLE_NODE_WIDTH:child.width)
+						+ childblockwidth;
 			}
 			return fornode;
 		} else if(cfgNode.getType() == Type.Break){
 			GraphNode breaknode = new GraphNode(cfgNode, parentNode, NodeType.Break, 
 					SINGLE_NODE_WIDTH, reachable);
+			this.nodeMap.put(cfgNode, breaknode);
 			if(leaves != null && leaves.size() > 0){
 				for(GraphNode node : leaves) {
 					//node.next = returnnode;
@@ -288,6 +299,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		} else if(cfgNode.getType() == Type.Continue){
 			GraphNode continuenode = new GraphNode(cfgNode, parentNode, NodeType.Continue, 
 					SINGLE_NODE_WIDTH, reachable);
+			this.nodeMap.put(cfgNode, continuenode);
 			if(leaves != null && leaves.size() > 0){
 				for(GraphNode node : leaves) {
 					//node.next = returnnode;
@@ -303,6 +315,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		} else if(cfgNode.getType() == Type.Return){
 			GraphNode returnnode = new GraphNode(cfgNode, parentNode, NodeType.Return, 
 					SINGLE_NODE_WIDTH, reachable);
+			this.nodeMap.put(cfgNode, returnnode);
 			if(leaves != null && leaves.size() > 0){
 				for(GraphNode node : leaves) {
 					//node.next = returnnode;
@@ -335,10 +348,11 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		return super.createSourceViewer(parent, ruler, styles);
 	}
 	
-	public void updateData(CfgNode cfgEntry){
+	public void updateCfg(CfgNode cfgEntry){
 		if(cfgEntry == null) return;
 		//处理宽高
 		this.allNodesList.clear();
+		this.nodeMap.clear();
 		this.fRoot = handleCfgNode(cfgEntry, 
 				null, //last for-node is null
 				null, //not base node at first
@@ -350,6 +364,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 		this.fCfgRulerColumn.fPaintingPanel.setWidth(
 				CfgCEditor.INTENTAITION*2 + this.fRoot.width);
 		this.fCfgRulerColumn.setGraphRoot(fRoot);
+		this.updateUi();
 	}
 	
 
@@ -364,6 +379,7 @@ public class CfgCEditor extends CEditor implements IPathShower {
 	@Override
 	public void showPath(CfgPath path){
 		clearAnnotations();
+		GraphNode lastCfgNode = null;
 		for(CfgNode node : path.getPath()){
 			Set<Entry<Integer, Integer>> set = node.getSrcMapSet();
 			for(Entry<Integer, Integer> entry : set){
@@ -373,6 +389,12 @@ public class CfgCEditor extends CEditor implements IPathShower {
 				this.fAnnotationModel.addAnnotation(annotation, pos);
 				this.fAnnotationList.add(annotation);
 			}
+			
+			GraphNode graphnode = this.nodeMap.get(node);
+			if(graphnode != null){
+				graphnode.execPrev = lastCfgNode;
+			}
+			lastCfgNode = graphnode;
 		}
 		
 		
@@ -402,8 +424,8 @@ public class CfgCEditor extends CEditor implements IPathShower {
 	public void doSave(IProgressMonitor progressMonitor){
 		super.doSave(progressMonitor);
 		AtgActivator.getDefault().fAtg.updateCfg();
-		updateData(AtgActivator.getDefault().fAtg.getCfgEntry());
-		updateUi();
+		//updateData(AtgActivator.getDefault().fAtg.getCfgEntry());
+		
 	}
 
 	/** 获取当前编辑器所编辑的cpp文件绝对路径 */
