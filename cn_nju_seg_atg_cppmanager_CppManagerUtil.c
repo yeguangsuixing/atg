@@ -22,7 +22,9 @@ enum ArgType {
 	_Char = 2, 
 	_Short = 3,
 	_Int = 4, 
-	_Long = 5
+	_Long = 5,
+	_FloatArray = 6,
+	_DoubleArray = 7
 };
 
 //shared-object pointer
@@ -176,7 +178,8 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
   	jintArray jargt,//arg type
   	jbyteArray jbargs, jcharArray jcargs, 
   	jintArray jiargs, jlongArray jlargs, 
-  	jfloatArray jfargs, jdoubleArray jdargs){
+  	jfloatArray jfargs, jdoubleArray jdargs,
+  	jintArray jarrayEntries){
   	
   	int i;
   	int index = (int)jindex;
@@ -195,37 +198,78 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 	for(i = 0; i < argc; i ++) { argt[i] = (int)nargt[i]; }
 	//calculate the total memory size of the arguments
 	int floatc = 0, doublec = 0, charc = 0, shortc = 0, intc = 0, longc = 0;
+	int floatarrayc = 0, doublearrayc = 0;
 	for(i = 0; i < argc; i ++){ 
-		if(_Float == argt[i])
+		if(_Float == argt[i]){
 			floatc ++;
-		else if(_Double == argt[i]){
+		} else if(_Double == argt[i]){
 			doublec ++;
+		} else if(_FloatArray == argt[i]){
+			floatarrayc ++;
+		} else if(_DoubleArray == argt[i]){
+			doublearrayc ++;
 		}
 	}
 	void* args = malloc( sizeof(float) * floatc + sizeof(double) * doublec
 				+ sizeof(char)*charc + sizeof(short) * shortc
-				+ sizeof(long int)*(intc+1) + sizeof(long long)*longc );
+				+ sizeof(long int)*(intc+1) + sizeof(long long)*longc 
+				+ sizeof(float*)*floatarrayc + sizeof(double*)*doublearrayc);
+	//float array args, double array args
+	float** faargs = NULL;
+	double** daargs = NULL;
+	if(floatarrayc > 0){
+		faargs = (float**)malloc(sizeof(float*)*floatarrayc);
+	}
+	if(doublearrayc > 0){
+		daargs = (double**)malloc(sizeof(double*)*doublearrayc);
+	}
 	//set the stack-likely memory space
 	
 	char* p = (char*)args;
 	jfloat* fargs = NULL;
 	jdouble* dargs = NULL;
+	jint* arrayEntries = NULL;
 	if(jfargs != NULL){
 		fargs = env->GetFloatArrayElements(jfargs, JNI_FALSE);
 	}
 	if(jdargs != NULL){
 		dargs = env->GetDoubleArrayElements(jdargs, JNI_FALSE);
 	}
-	floatc = 0; doublec = 0; charc = 0; shortc = 0; intc = 0; longc = 0;
+	if(jarrayEntries != NULL){
+		arrayEntries = env->GetIntArrayElements(jarrayEntries, JNI_FALSE);
+	}
+	floatc = doublec = charc = shortc = intc = longc = 0;
+	floatarrayc = doublearrayc = 0;
+	int arrayEntriesIndex = 0;
 	for(i = 0; i < argc; i ++){
 		if(argt[i] == _Float){
 			jfloat value = fargs[floatc++];
 			*(float*)p = (jfloat)value;
-			p += 4;
+			p += sizeof(float);
 		} else if(argt[i] == _Double){
 			jdouble value = dargs[doublec++];
 			*(double*)p = (jdouble)value;
-			p += 8;
+			p += sizeof(double);
+		} else if(argt[i] == _FloatArray){
+			int arrlen = arrayEntries[arrayEntriesIndex++];
+			faargs[floatarrayc] = (float*)malloc(sizeof(float)*arrlen);
+			float* temp = (float*)(faargs[floatarrayc]);
+			for(int k = 0; k < arrlen; k ++){
+				temp[k] = fargs[floatc++];
+			}
+			floatarrayc++;
+			*(float**)p = temp;
+			p += sizeof(float*);
+		} else if(argt[i] == _DoubleArray){
+			int arrlen = arrayEntries[arrayEntriesIndex++];
+			daargs[doublearrayc] = (double*)malloc(sizeof(double)*arrlen);
+			double* temp = (double*)(daargs[doublearrayc]);
+			for(int k = 0; k < arrlen; k ++){
+				temp[k] = dargs[doublec++];
+			}
+			doublearrayc++;
+			*(double**)p = temp;
+			p += sizeof(double*);
 		}
 	}
 
@@ -248,12 +292,17 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 		//*
 	asm volatile(
 		"pushl	%%ebp;"
+		"pushl	%%edi;"
 		"movl	%%esp, %%ebp;"
 	"LABEL_START:"
 		"cmpl	$0, %%ecx;"
 		"je		LABEL_END;"
 		"cmpl	$0, (%%eax);"
-		"jne	LABEL_DOUBLE;"
+		"je		LABEL_FLOAT;"
+		"cmpl	$1, (%%eax);"
+		"je		LABEL_DOUBLE;"
+		"cmpl	$6, (%%eax);"
+		"jge	LABEL_ARRAY;"
 	"LABEL_FLOAT:"
 		"subl	$4, %%esp;"
 		"flds	(%%ebx);"
@@ -265,6 +314,13 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 		"fldl	(%%ebx);"
 		"fstpl	(%%esp);"
 		"addl	$8, %%ebx;"
+		"jmp	LABEL_PUSH_END;"
+	"LABEL_ARRAY:"
+		"subl	$4, %%esp;"
+		"movl	(%%ebx), %%edi;"
+		"movl	%%edi, (%%esp);"
+		"addl	$4, %%ebx;"
+		"jmp	LABEL_PUSH_END;"
 	"LABEL_PUSH_END:"
 		"decl	%%ecx;"
 		"addl	$4, %%eax;"
@@ -273,6 +329,7 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 		"pushl	(%%ebx);"
 		"call	*%%edx;"
 		"movl	%%ebp, %%esp;"
+		"popl	%%edi;"
 		"popl	%%ebp;"
 		:
 		:"a"(argt),"b"(args),"c"(argc),"d"(func)
@@ -280,6 +337,14 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 //*/
 	free(argt);
 	free(args);
+	while(floatarrayc-- > 0){
+		free(faargs[floatarrayc]);
+	}
+	while(doublearrayc-- > 0){
+		free(daargs[doublearrayc]);
+	}
+	if(faargs != NULL) free(faargs);
+	if(daargs != NULL) free(daargs);
 	generateExecInfo();
 	return (env)->NewStringUTF(execInfo);
 }

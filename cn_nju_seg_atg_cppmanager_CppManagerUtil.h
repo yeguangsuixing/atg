@@ -47,7 +47,7 @@ JNIEXPORT jboolean JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_unloadA
  */
 JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
   (JNIEnv *, jobject, jint, jstring, jint, jintArray, jbyteArray, jcharArray, 
-  	jintArray, jlongArray, jfloatArray, jdoubleArray);
+  	jintArray, jlongArray, jfloatArray, jdoubleArray, jintArray);
 
 /*
  * Class:     cn_nju_seg_atg_cppmanager_CppManagerUtil

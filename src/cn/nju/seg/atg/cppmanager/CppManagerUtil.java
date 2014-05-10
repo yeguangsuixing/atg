@@ -43,7 +43,7 @@ public class CppManagerUtil {
 	public native String call(int index, String funcname,
 			int argc, int[] argt, byte[] byteArgs, char[]charArgs,
 			int[] intArgs, long[] longArgs, 
-			float[]floatArgs, double[] doubleArgs);
+			float[]floatArgs, double[] doubleArgs, int[] arrayEntries);
 	
 	/**
 	 * 获取内部节点的运行情况

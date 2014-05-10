@@ -103,7 +103,11 @@ public class CppManager {
 	public static enum ArgType {
 		Float, Double,
 		Byte, Char,
-		Int, Long
+		Int, Long,
+		/** 一维单精度数组 */
+		FloatArray, 
+		/** 一维双精度数组 */
+		DoubleArray
 	}
 	
 	/** 最大加载数量 */
@@ -397,8 +401,10 @@ public class CppManager {
 			ArgType[] argt, Object[] args){
 		CallResult cr = new CallResult();
 		int bytec = 0, charc = 0, intc = 0, longc = 0, floatc = 0, doublec = 0;
+		int arraycount = 0;
 		//计算每种类型的参数个数，保存到bytec, charc, intc, longc, floatc, doublec
-		for(ArgType t : argt){
+		for(int i = 0; i < argt.length; i ++){
+			ArgType t = argt[i];
 			if(t == ArgType.Float){
 				floatc++;
 			} else if(t == ArgType.Double){
@@ -411,6 +417,12 @@ public class CppManager {
 				intc++;
 			} else if(t == ArgType.Long){
 				longc++;
+			} else if(t == ArgType.FloatArray){
+				floatc += ((Float[])args[i]).length;
+				++ arraycount;
+			} else if(t == ArgType.DoubleArray){
+				doublec += ((Double[])args[i]).length;
+				++ arraycount;
 			}
 		}
 		//以j开头的变量用于传递到C++中
@@ -425,6 +437,7 @@ public class CppManager {
 		long[] jlargs = null;
 		float[] jfargs = null;
 		double[] jdargs = null;
+		int[] jarrayEntries = null;
 		if(bytec > 0){
 			jbargs = new byte[bytec];
 		}
@@ -443,6 +456,9 @@ public class CppManager {
 		if(doublec > 0){
 			jdargs = new double[doublec];
 		}
+		if(arraycount > 0){
+			jarrayEntries = new int[arraycount];
+		}
 		//bytec = 0; charc = 0; intc = 0; longc = 0; floatc = 0; doublec = 0;
 		for(int i = 0; i < argt.length; i ++){
 			if(argt[i] == ArgType.Float){
@@ -457,10 +473,22 @@ public class CppManager {
 				jiargs[--intc] = (Integer) args[i];
 			} else if(argt[i] == ArgType.Long){
 				jlargs[--longc] = (Long) args[i];
+			} else if(argt[i] == ArgType.FloatArray){
+				Float[] fa = ((Float[]) args[i]);
+				for(int k = fa.length - 1; k >= 0; k --){
+					jfargs[--floatc] = fa[k];
+				}
+				jarrayEntries[--arraycount] = fa.length;
+			} else if(argt[i] == ArgType.DoubleArray){
+				Double[] da = ((Double[]) args[i]);
+				for(int k = da.length - 1; k >= 0; k --){
+					jdargs[--doublec] = da[k];
+				}
+				jarrayEntries[--arraycount] = da.length;
 			}
 		}
 		String rsl = util.call(lr.index, funcname, argt.length, jargt, 
-				jbargs, jcargs, jiargs, jlargs, jfargs, jdargs);
+				jbargs, jcargs, jiargs, jlargs, jfargs, jdargs, jarrayEntries);
 		//System.out.println("result:"+rsl);
 		if(rsl == null || rsl.length() < 3){
 			cr.msg = null;

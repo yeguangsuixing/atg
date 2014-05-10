@@ -295,8 +295,12 @@ public class Atg {
 					//带有默认值的参数的类型对应字符串类似：“double=2.0”
 					//所以不使用equals，而使用startsWith
 					if(type.startsWith("double")){
-						paraTypeArray[i] = ArgType.Double;
-					} else if(type.startsWith("float")){
+						if(type.contains("[]")){
+							paraTypeArray[i] = ArgType.DoubleArray;
+						} else {
+							paraTypeArray[i] = ArgType.Double;
+						}
+					} else if(type.startsWith("float")){//TODO float array
 						paraTypeArray[i] = ArgType.Float;
 					} else if(type.startsWith("int") || type.startsWith("long int")){
 						paraTypeArray[i] = ArgType.Int;
@@ -506,6 +510,10 @@ public class Atg {
 			}
 			//控制变量：每次选择一个变量（参数），保持其他参数不变
 			for(int paraIndex = 0; paraIndex < this.paraCount; paraIndex ++){
+				if(this.paraTypeArray[paraIndex] == ArgType.DoubleArray
+						||this.paraTypeArray[paraIndex] == ArgType.FloatArray){
+					continue;//跳过数组
+				}
 				for(int i = 0; i < circle; i ++){
 					//清除节点中的坐标信息
 					for(CfgNode node : nodeList) {
@@ -646,15 +654,18 @@ public class Atg {
 		for(int i = 0; i < this.paraCount; i ++){
 			//TODO 这里我们只处理float类型和double类型
 			//if(this.paraSigtArray[i].equals("double")){
-			if(this.paraSigtArray[i].startsWith("float")
-					|| this.paraSigtArray[i].startsWith("double")){
-				//对于带有默认值的参数来说，对应字符串类似"double=3"
+			if(this.paraTypeArray[i] == ArgType.Float
+					|| this.paraTypeArray[i] == ArgType.Double){
 				if(i == paraIndex ||paraArray == null 
 						|| paraArray[i] == null ){
 					paras[i] = paraGeneInterval.getRandom();
 				} else {
 					paras[i] = paraArray[i];
 				}
+			} else if(this.paraTypeArray[i] == ArgType.FloatArray){
+				paras[i] = new Float[]{2.5f, 4.6f};
+			} else if(this.paraTypeArray[i] == ArgType.DoubleArray){
+				paras[i] = new Double[]{9.8, 5.6, 100.5};
 			}
 		}
 		return paras;
