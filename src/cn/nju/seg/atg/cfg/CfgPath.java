@@ -55,11 +55,11 @@ public class CfgPath {
 				this.isCoverred = true;
 			}
 			if(paras != null && this.parasList.size() < MAX_NR_PARAS){
-				this.parasList.add(paras);			
+				this.parasList.add(paras);
 			}
 		} else if(this.coverredNodeCount == count){
 			if(paras != null && this.parasList.size() < MAX_NR_PARAS){
-				this.parasList.add(paras);			
+				this.parasList.add(paras);
 			}
 		}
 	}

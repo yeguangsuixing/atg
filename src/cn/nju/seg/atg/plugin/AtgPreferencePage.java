@@ -24,7 +24,7 @@ public class AtgPreferencePage extends FieldEditorPreferencePage
 		addField( new IntegerFieldEditor(PreferenceConstants.NR_DETECT, 
 				"Number of D&etect:", getFieldEditorParent()));
 		addField( new IntegerFieldEditor(PreferenceConstants.NR_CIRCLE, 
-				"Number of &Circle:", getFieldEditorParent()));
+				"Number of &Cycle:", getFieldEditorParent()));
 		addField( new StringFieldEditor(PreferenceConstants.CMD_COMPILE, 
 				"Co&mpiling Command:", getFieldEditorParent()));
 	}

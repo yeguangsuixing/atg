@@ -19,12 +19,13 @@
 enum ArgType { 
 	_Float = 0, 
 	_Double = 1, 
-	_Char = 2, 
-	_Short = 3,
-	_Int = 4, 
-	_Long = 5,
+	_Int8 = 2, 
+	_Int16 = 3,
+	_Int32 = 4, 
+	_Int64 = 5,
 	_FloatArray = 6,
-	_DoubleArray = 7
+	_DoubleArray = 7,
+	_Unknown = 8
 };
 
 //shared-object pointer
@@ -197,23 +198,36 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 	jint *nargt = env->GetIntArrayElements( jargt, JNI_FALSE );
 	for(i = 0; i < argc; i ++) { argt[i] = (int)nargt[i]; }
 	//calculate the total memory size of the arguments
-	int floatc = 0, doublec = 0, charc = 0, shortc = 0, intc = 0, longc = 0;
+	int floatc = 0, doublec = 0, int8c = 0, int16c = 0, int32c = 0, int64c = 0, unknownc = 0;
 	int floatarrayc = 0, doublearrayc = 0;
 	for(i = 0; i < argc; i ++){ 
 		if(_Float == argt[i]){
 			floatc ++;
 		} else if(_Double == argt[i]){
 			doublec ++;
+		} else if(_Int8 == argt[i]){
+			int8c ++;
+		} else if(_Int16 == argt[i]){
+			int16c ++;
+		} else if(_Int32 == argt[i]){
+			int32c ++;
+		} else if(_Int64 == argt[i]){
+			int64c ++;
 		} else if(_FloatArray == argt[i]){
 			floatarrayc ++;
 		} else if(_DoubleArray == argt[i]){
 			doublearrayc ++;
+		} else if(_Unknown == argt[i]){
+			unknownc ++;
 		}
 	}
 	void* args = malloc( sizeof(float) * floatc + sizeof(double) * doublec
-				+ sizeof(char)*charc + sizeof(short) * shortc
-				+ sizeof(long int)*(intc+1) + sizeof(long long)*longc 
-				+ sizeof(float*)*floatarrayc + sizeof(double*)*doublearrayc);
+				+ sizeof(long int)*int8c + sizeof(long int) * int16c
+				+ sizeof(long int)*(int32c) + sizeof(long long int)*int64c 
+				+ sizeof(float*)*floatarrayc + sizeof(double*)*doublearrayc
+				+ sizeof(long int)*(unknownc)
+				+ sizeof(long int)//for the function pointer
+				);
 	//float array args, double array args
 	float** faargs = NULL;
 	double** daargs = NULL;
@@ -226,9 +240,25 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 	//set the stack-likely memory space
 	
 	char* p = (char*)args;
+	jbyte* int8args = NULL;
+	jchar* int16args = NULL;
+	jint*  int32args = NULL;
+	jlong* int64args = NULL;
 	jfloat* fargs = NULL;
 	jdouble* dargs = NULL;
 	jint* arrayEntries = NULL;
+	if(jbargs != NULL){
+		int8args = env->GetByteArrayElements(jbargs, JNI_FALSE);
+	}
+	if(jcargs != NULL){
+		int16args = env->GetCharArrayElements(jcargs, JNI_FALSE);
+	}
+	if(jiargs != NULL){
+		int32args = env->GetIntArrayElements(jiargs, JNI_FALSE);
+	}
+	if(jlargs != NULL){
+		int64args = env->GetLongArrayElements(jlargs, JNI_FALSE);
+	}
 	if(jfargs != NULL){
 		fargs = env->GetFloatArrayElements(jfargs, JNI_FALSE);
 	}
@@ -238,18 +268,28 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 	if(jarrayEntries != NULL){
 		arrayEntries = env->GetIntArrayElements(jarrayEntries, JNI_FALSE);
 	}
-	floatc = doublec = charc = shortc = intc = longc = 0;
+	floatc = doublec = int8c = int16c = int32c = int64c = 0;
 	floatarrayc = doublearrayc = 0;
 	int arrayEntriesIndex = 0;
 	for(i = 0; i < argc; i ++){
 		if(argt[i] == _Float){
-			jfloat value = fargs[floatc++];
-			*(float*)p = (jfloat)value;
+			*(float*)p = (jfloat)fargs[floatc++];
 			p += sizeof(float);
 		} else if(argt[i] == _Double){
-			jdouble value = dargs[doublec++];
-			*(double*)p = (jdouble)value;
+			*(double*)p = (jdouble)dargs[doublec++];
 			p += sizeof(double);
+		} else if(argt[i] == _Int8){
+			*(long int*)p = int8args[int8c++];
+			p += sizeof(long int);
+		} else if(argt[i] == _Int16){
+			*(long int*)p = int16args[int16c++];
+			p += sizeof(long int);
+		} else if(argt[i] == _Int32){
+			*(long int*)p = int32args[int32c++];
+			p += sizeof(long int);
+		} else if(argt[i] == _Int64){
+			*(long long int*)p = int64args[int64c++];
+			p += sizeof(long long int);
 		} else if(argt[i] == _FloatArray){
 			int arrlen = arrayEntries[arrayEntriesIndex++];
 			faargs[floatarrayc] = (float*)malloc(sizeof(float)*arrlen);
@@ -270,6 +310,9 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 			doublearrayc++;
 			*(double**)p = temp;
 			p += sizeof(double*);
+		} else if(argt[i] == _Unknown){
+			*(void**)p = NULL;
+			p += sizeof(void*);
 		}
 	}
 
@@ -301,8 +344,12 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 		"je		LABEL_FLOAT;"
 		"cmpl	$1, (%%eax);"
 		"je		LABEL_DOUBLE;"
+		"cmpl	$4, (%%eax);"
+		"jle	LABEL_INT8_INT16_INT32_ARRAY;"
+		"cmpl	$5, (%%eax);"
+		"je		LABEL_INT64;"
 		"cmpl	$6, (%%eax);"
-		"jge	LABEL_ARRAY;"
+		"jge	LABEL_INT8_INT16_INT32_ARRAY;"
 	"LABEL_FLOAT:"
 		"subl	$4, %%esp;"
 		"flds	(%%ebx);"
@@ -315,7 +362,15 @@ JNIEXPORT jstring JNICALL Java_cn_nju_seg_atg_cppmanager_CppManagerUtil_call
 		"fstpl	(%%esp);"
 		"addl	$8, %%ebx;"
 		"jmp	LABEL_PUSH_END;"
-	"LABEL_ARRAY:"
+	"LABEL_INT64:"
+		"subl	$8, %%esp;"
+		"movl	(%%ebx), %%edi;"
+		"movl	%%edi, (%%esp);"
+		"movl	4(%%ebx), %%edi;"
+		"movl	%%edi, 4(%%esp);"
+		"addl	$8, %%ebx;"
+		"jmp	LABEL_PUSH_END;"
+	"LABEL_INT8_INT16_INT32_ARRAY:"
 		"subl	$4, %%esp;"
 		"movl	(%%ebx), %%edi;"
 		"movl	%%edi, (%%esp);"

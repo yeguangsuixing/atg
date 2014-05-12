@@ -105,7 +105,7 @@ public class Atg {
 		 * @param paraSigt 参数签名数组
 		 * @param asynUpdate 是否异步刷新
 		 * */
-		public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean ansyUpdate);
+		public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean asynUpdate);
 	}
 	public static interface ICfgViewer {
 		/**
@@ -235,7 +235,7 @@ public class Atg {
 		ITranslationUnit unit = this.function.getTranslationUnit();
 		IASTTranslationUnit funcunitast = null;
 		try {
-			funcunitast = unit.getAST(null, ITranslationUnit.AST_SKIP_ALL_HEADERS);
+			funcunitast = unit.getAST(null, ITranslationUnit.AST_SKIP_NONINDEXED_HEADERS);
 			//console.println(funcunitast);
 		} catch (CoreException e) {
 			e.printStackTrace();
@@ -276,6 +276,8 @@ public class Atg {
 			StringBuilder funcSign = new StringBuilder(funcname);
 			String[] paraStrArray = ASTStringUtil.
 				getParameterSignatureArray(funcdecl);
+			//CPPASTFunctionDeclarator t = ((CPPASTFunctionDeclarator)funcdecl);
+			//t.getParameters();
 			funcSign.append("(");
 			for(int i=0;i<paraStrArray.length;i++)
 			{
@@ -294,23 +296,34 @@ public class Atg {
 					String type = paraSigtArray[i];
 					//带有默认值的参数的类型对应字符串类似：“double=2.0”
 					//所以不使用equals，而使用startsWith
+					int signedindex = type.indexOf("signed");
+					if(signedindex > 0){
+						type = type.substring(signedindex+"signed ".length());
+					}
 					if(type.startsWith("double")){
 						if(type.contains("[]")){
 							paraTypeArray[i] = ArgType.DoubleArray;
 						} else {
 							paraTypeArray[i] = ArgType.Double;
 						}
-					} else if(type.startsWith("float")){//TODO float array
-						paraTypeArray[i] = ArgType.Float;
-					} else if(type.startsWith("int") || type.startsWith("long int")){
-						paraTypeArray[i] = ArgType.Int;
-					} else if(type.equals("long") || type.equals("long long")
-							|| type.startsWith("long=")){
-						paraTypeArray[i] = ArgType.Long;
-					} else if(type.startsWith("short") || type.startsWith("short int")){
-						paraTypeArray[i] = ArgType.Char;
-					} else if(type.startsWith("char")){
-						paraTypeArray[i] = ArgType.Byte;
+					} else if(type.startsWith("float")){
+						if(type.contains("[]")){
+							paraTypeArray[i] = ArgType.FloatArray;
+						} else {
+							paraTypeArray[i] = ArgType.Float;
+						}
+					} else if(type.startsWith("int") || type.startsWith("long int")
+							|| type.equals("long") || type.equals("long=")){
+						paraTypeArray[i] = ArgType.Int32;
+					} else if(type.startsWith("long long")){
+						//long long / long long= / long long int/ long long int=
+						paraTypeArray[i] = ArgType.Int64;
+					} else if(type.startsWith("short")){//short/short=/short int/short int=
+						paraTypeArray[i] = ArgType.Int16;
+					} else if(type.startsWith("char")){//char/char=
+						paraTypeArray[i] = ArgType.Int8;
+					} else {
+						paraTypeArray[i] = ArgType.Unknown;
 					}
 				}
 				return (IASTFunctionDefinition) decln;
@@ -488,7 +501,7 @@ public class Atg {
 		 * */
 		IPreferenceStore store = AtgActivator.getDefault().getPreferenceStore();
 		//对于每个参数，所需要遍历的轮数
-		int circle = store.getInt(PreferenceConstants.NR_CIRCLE);
+		int cycles = store.getInt(PreferenceConstants.NR_CIRCLE);
 		int detect = store.getInt(PreferenceConstants.NR_DETECT);
 		List<CfgNode> nodeList = this.cfg.getAllNodes();
 		int coverredcount = 0;//记录覆盖路径数
@@ -510,11 +523,18 @@ public class Atg {
 			}
 			//控制变量：每次选择一个变量（参数），保持其他参数不变
 			for(int paraIndex = 0; paraIndex < this.paraCount; paraIndex ++){
-				if(this.paraTypeArray[paraIndex] == ArgType.DoubleArray
-						||this.paraTypeArray[paraIndex] == ArgType.FloatArray){
-					continue;//跳过数组
+				if(this.paraTypeArray[paraIndex] == ArgType.Unknown){
+					continue;//跳过未知类型
 				}
-				for(int i = 0; i < circle; i ++){
+				if(this.paraTypeArray[paraIndex] == ArgType.Int8
+						|| this.paraTypeArray[paraIndex] == ArgType.Int16
+						|| this.paraTypeArray[paraIndex] == ArgType.Int32
+						|| this.paraTypeArray[paraIndex] == ArgType.Int64
+						|| this.paraTypeArray[paraIndex] == ArgType.FloatArray
+						|| this.paraTypeArray[paraIndex] == ArgType.DoubleArray){
+					continue;//跳过整型和数组
+				}
+				for(int i = 0; i < cycles; i ++){
 					//清除节点中的坐标信息
 					for(CfgNode node : nodeList) {
 						if(!node.isCondType()) continue;
@@ -542,7 +562,7 @@ public class Atg {
 		//测试参数数组
 		Object[] paraArray = null;
 
-		List<Double> paraValuePool = new ArrayList<Double>();
+		//List<Double> paraValuePool = new ArrayList<Double>();
 		Interval maxInterval = new Interval(Double.MAX_VALUE, -Double.MAX_VALUE);
 		List<CfgNode> commonAncesters = null;
 		for(int i = 0; i < 2; i ++){
@@ -550,7 +570,7 @@ public class Atg {
 			paraArray = geneParaArray(paraIndex, paraArray);
 			//运行程序
 			CallResult rsl = callFunction(paraArray, targetpath, 
-					paraIndex, paraValuePool);
+					paraIndex);
 			//rsl 为空，要么是运行出错，要么是覆盖了目标路径
 			if(rsl == null) return;
 			commonAncesters = targetpath.getCommonAncesters(rsl.path);
@@ -624,7 +644,7 @@ public class Atg {
 					}
 				}
 				CallResult rsl = callFunction(newparaArray, targetpath, 
-						paraIndex, paraValuePool);
+						paraIndex);
 				//rsl 为空，要么是运行出错，要么是覆盖了目标路径
 				if(rsl == null) return;
 				//else continue;
@@ -653,7 +673,6 @@ public class Atg {
 		Object[] paras = new Object[this.paraCount];
 		for(int i = 0; i < this.paraCount; i ++){
 			//TODO 这里我们只处理float类型和double类型
-			//if(this.paraSigtArray[i].equals("double")){
 			if(this.paraTypeArray[i] == ArgType.Float
 					|| this.paraTypeArray[i] == ArgType.Double){
 				if(i == paraIndex ||paraArray == null 
@@ -662,17 +681,27 @@ public class Atg {
 				} else {
 					paras[i] = paraArray[i];
 				}
+			} else if(this.paraTypeArray[i] == ArgType.Int8){
+				paras[i] = new Byte((byte) 0x35);
+			} else if(this.paraTypeArray[i] == ArgType.Int16){
+				paras[i] = new Character('6');
+			} else if(this.paraTypeArray[i] == ArgType.Int32){
+				paras[i] = new Integer(888);
+			} else if(this.paraTypeArray[i] == ArgType.Int64){
+				paras[i] = new Long(9999999);
 			} else if(this.paraTypeArray[i] == ArgType.FloatArray){
 				paras[i] = new Float[]{2.5f, 4.6f};
 			} else if(this.paraTypeArray[i] == ArgType.DoubleArray){
-				paras[i] = new Double[]{9.8, 5.6, 100.5};
+				paras[i] = new Double[]{98.0, 5.6, 100.5};
+			} else if(this.paraTypeArray[i] == ArgType.Unknown){
+				paras[i] = null;
 			}
 		}
 		return paras;
 	}
 	
 	private CallResult callFunction(Object[] paraArray, CfgPath targetpath, 
-			int paraIndex, List<Double> paraValuePool){
+			int paraIndex){
 		CallResult clr = cppManager.callFunction(loadSoObject, 
 				this.functionName, this.paraTypeArray, paraArray);
 		if(!clr.succeed || clr.path == null){//运行出错
@@ -682,8 +711,6 @@ public class Atg {
 		clr.path.addParas(clr.path.length(), paraArray);
 		//生成的路径恰好是目标路径
 		if(clr.path == targetpath) return null;
-		//添加到参数池中，在重新生成参数时需要此池
-		paraValuePool.add((Double) paraArray[paraIndex]);
 		//添加约束节点运行时的值到约束节点中
 		this.cfg.updateConstraintNode((Double) paraArray[paraIndex], 
 				clr.innerNodeMap);

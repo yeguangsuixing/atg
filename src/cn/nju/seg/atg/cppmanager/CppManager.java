@@ -101,13 +101,18 @@ public class CppManager {
 	 * @time 2014/04/26 14:06
 	 * */
 	public static enum ArgType {
-		Float, Double,
-		Byte, Char,
-		Int, Long,
+		Float,
+		Double,
+		Int8,
+		Int16,
+		Int32,
+		Int64,
 		/** 一维单精度数组 */
-		FloatArray, 
+		FloatArray,
 		/** 一维双精度数组 */
-		DoubleArray
+		DoubleArray,
+		/** 如果变量类型经过宏定义/或者是复合数据类型，那么暂时不考虑 */
+		Unknown
 	}
 	
 	/** 最大加载数量 */
@@ -400,7 +405,7 @@ public class CppManager {
 	public CallResult callFunction(LoadResult lr, String funcname,
 			ArgType[] argt, Object[] args){
 		CallResult cr = new CallResult();
-		int bytec = 0, charc = 0, intc = 0, longc = 0, floatc = 0, doublec = 0;
+		int int8c = 0, int16c = 0, int32c = 0, int64c = 0, floatc = 0, doublec = 0;
 		int arraycount = 0;
 		//计算每种类型的参数个数，保存到bytec, charc, intc, longc, floatc, doublec
 		for(int i = 0; i < argt.length; i ++){
@@ -409,14 +414,14 @@ public class CppManager {
 				floatc++;
 			} else if(t == ArgType.Double){
 				doublec++;
-			} else if(t == ArgType.Byte){
-				bytec++;
-			} else if(t == ArgType.Char){
-				charc++;
-			} else if(t == ArgType.Int){
-				intc++;
-			} else if(t == ArgType.Long){
-				longc++;
+			} else if(t == ArgType.Int8){
+				int8c++;
+			} else if(t == ArgType.Int16){
+				int16c++;
+			} else if(t == ArgType.Int32){
+				int32c++;
+			} else if(t == ArgType.Int64){
+				int64c++;
 			} else if(t == ArgType.FloatArray){
 				floatc += ((Float[])args[i]).length;
 				++ arraycount;
@@ -438,17 +443,17 @@ public class CppManager {
 		float[] jfargs = null;
 		double[] jdargs = null;
 		int[] jarrayEntries = null;
-		if(bytec > 0){
-			jbargs = new byte[bytec];
+		if(int8c > 0){
+			jbargs = new byte[int8c];
 		}
-		if(charc > 0){
-			jcargs = new char[charc];
+		if(int16c > 0){
+			jcargs = new char[int16c];
 		}
-		if(intc > 0){
-			jiargs = new int[intc];
+		if(int32c > 0){
+			jiargs = new int[int32c];
 		}
-		if(longc > 0){
-			jlargs = new long[longc];
+		if(int64c > 0){
+			jlargs = new long[int64c];
 		}
 		if(floatc > 0){
 			jfargs = new float[floatc];
@@ -465,14 +470,14 @@ public class CppManager {
 				jfargs[--floatc] = (Float) args[i];
 			} else if(argt[i] == ArgType.Double){
 				jdargs[--doublec] = (Double) args[i];
-			} else if(argt[i] == ArgType.Byte){
-				jbargs[--bytec] = (Byte) args[i];
-			} else if(argt[i] == ArgType.Char){
-				jcargs[--charc] = (Character) args[i];
-			} else if(argt[i] == ArgType.Int){
-				jiargs[--intc] = (Integer) args[i];
-			} else if(argt[i] == ArgType.Long){
-				jlargs[--longc] = (Long) args[i];
+			} else if(argt[i] == ArgType.Int8){
+				jbargs[--int8c] = (Byte) args[i];
+			} else if(argt[i] == ArgType.Int16){
+				jcargs[--int16c] = (Character) args[i];
+			} else if(argt[i] == ArgType.Int32){
+				jiargs[--int32c] = (Integer) args[i];
+			} else if(argt[i] == ArgType.Int64){
+				jlargs[--int64c] = (Long) args[i];
 			} else if(argt[i] == ArgType.FloatArray){
 				Float[] fa = ((Float[]) args[i]);
 				for(int k = fa.length - 1; k >= 0; k --){
