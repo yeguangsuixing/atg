@@ -92,7 +92,7 @@ public class CppManager {
 	private static int FOR_INIT_VAR_NO = 0;
 	
 	public static final String DEFAULT_CMD_COMPILE = 
-			"gcc -shared -fpic -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
+			"gcc -shared -fpic -m32 -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
 	
 	private static final DateFormat DATE_FMT = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
 	/**
@@ -295,7 +295,7 @@ public class CppManager {
 						int off = consnode.getOffset();
 						if(off < 0) continue;
 						int len = consnode.getLength();
-						//将内部节点之前的内容原样输出
+						//将原子约束单元之前的内容原样输出
 						for(; index < off; index ++){
 							writer.append(filebuf[index]);
 						}

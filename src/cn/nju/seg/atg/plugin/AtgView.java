@@ -130,7 +130,7 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 				sb.append(parasigt);
 				sb.append("=");
 				sb.append(para);
-				sb.append(",");
+				sb.append(", ");
 			}
 			this.name = sb.toString();
 		}
@@ -246,13 +246,13 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	}
 	
 	@Override
-	public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean asynUpdate){
+	public void showAllPathsData(List<CfgPath> pathList, String[] paraNameArray, boolean asynUpdate){
 		invisibleRoot.removeAllChildren();
 		for(CfgPath path : pathList){
 			CfgPathTreeNode pathnode = new CfgPathTreeNode(path);
 			for(int i = 0; i < path.getParasListSize(); i ++){
 				Object[] paras = path.getParas(i);
-				AtgParaDataTreeNode node = new AtgParaDataTreeNode(paraSigt, paras);
+				AtgParaDataTreeNode node = new AtgParaDataTreeNode(paraNameArray, paras);
 				pathnode.addChild(node);
 			}
 			invisibleRoot.addChild(pathnode);

@@ -24,10 +24,11 @@ public class CfgCondNode extends CfgNode {
 	/** 条件表达式 */
 	/*default*/ IASTExpression expression;
 
-	/** 内嵌根节点 */
-	/*default*/ CfgConstraintUnit innerNodeRoot;
-	
-	protected List<CfgConstraintUnit> innerNodeList = new ArrayList<CfgConstraintUnit>();
+	/** 原子约束单元根节点 */
+	/*default*/ CfgConstraintUnit constraintUnitRoot;
+	/** 所有原子约束单元列表 */
+	protected List<CfgConstraintUnit> constraintUnitList = 
+			new ArrayList<CfgConstraintUnit>();
 	
 
 	/** 是否处于满足状态 */
@@ -41,14 +42,21 @@ public class CfgCondNode extends CfgNode {
 		this.expression = removeBrackets(expression);
 	}
 	
-	/** 获取所有内部节点 */
+	/** 获取所有原子约束条件 */
 	public List<CfgConstraintUnit> getAllInnerNodes(){
-		return this.innerNodeList;
+		return this.constraintUnitList;
 	}
-	
+	/**
+	 * 设置节点满足性
+	 * @param satisfied 节点满足性
+	 * */
 	public void setSatisfied(boolean satisfied){
 		this.satisfied = satisfied;
 	}
+	/** 
+	 * 判断指定节点是否是当前节点的then节点
+	 * @param node 要判断的节点
+	 *  */
 	public boolean isThenNode(CfgNode node){
 		return this.then == node;
 	}
@@ -60,7 +68,7 @@ public class CfgCondNode extends CfgNode {
 	
 	/** 处理当前节点的条件表达式，生成逻辑二叉树 */
 	public void handleExpression(){
-		this.innerNodeRoot = handleExpression(this.expression);
+		this.constraintUnitRoot = handleExpression(this.expression);
 	}
 	
 	private CfgConstraintUnit handleExpression(IASTExpression curExp){
@@ -92,7 +100,7 @@ public class CfgCondNode extends CfgNode {
 		}
 		//如果不是，或者说不存在【逻辑或】和【逻辑与】
 		CfgConstraintUnit newnode = new CfgConstraintUnit(curExp, negative);
-		innerNodeList.add(newnode);
+		constraintUnitList.add(newnode);
 		return newnode;
 	}
 	
@@ -112,22 +120,11 @@ public class CfgCondNode extends CfgNode {
 		}
 		return exp;
 	}
-	/**
-	 * 去除所有一元运算符
-	 * @param exp 要处理的表达式
-	 * */
-	/*default*/ 
-	static IASTBinaryExpression removeAllUnaryOp(IASTExpression exp) {
-		while(exp instanceof IASTUnaryExpression) {
-			exp = ((IASTUnaryExpression) exp).getOperand();
-		}
-		return (IASTBinaryExpression)exp;
-	}
 	
 	/** 清除所有的坐标信息 */
 	public void clearAllNodesPoints(){
-		if(this.innerNodeRoot != null){
-			clearPoints(this.innerNodeRoot);
+		if(this.constraintUnitRoot != null){
+			clearPoints(this.constraintUnitRoot);
 		}
 	}
 	private void clearPoints(CfgConstraintUnit node){
@@ -146,7 +143,7 @@ public class CfgCondNode extends CfgNode {
 	public List<Interval> getEffectiveIntervalList(Interval maxInterval) {
 		List<Interval> effIntervalList = new ArrayList<Interval>();
 		effIntervalList.add(maxInterval.clone());
-		List<Interval> temp = getEffectiveIntervalList(innerNodeRoot, maxInterval);
+		List<Interval> temp = getEffectiveIntervalList(constraintUnitRoot, maxInterval);
 		
 		if(satisfied){
 			return Interval.getUnion(maxInterval, temp, effIntervalList);

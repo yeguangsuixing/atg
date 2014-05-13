@@ -8,6 +8,9 @@ import java.util.List;
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
+import org.eclipse.cdt.core.dom.ast.IASTName;
+import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
+import org.eclipse.cdt.core.dom.ast.IASTStandardFunctionDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit;
 import org.eclipse.cdt.core.model.CModelException;
 import org.eclipse.cdt.core.model.IFunctionDeclaration;
@@ -47,10 +50,12 @@ public class Atg {
 	private String functionSignature;
 	/** 函数名称 */
 	private String functionName;
-	/** 参数签名数组 */
+	/** 参数类型签名数组 */
 	private String[] paraSigtArray;
 	/** 参数类型数组 */
 	private ArgType[] paraTypeArray;
+	/** 参数名数组 */
+	private String[] paraNameArray;
 	/** 参数个数 */
 	private int paraCount;
 	/** 当前要处理的函数对应的抽象语法树 */
@@ -102,10 +107,10 @@ public class Atg {
 		/**
 		 * 显示所有CFG路径
 		 * @param pathList 所有路径
-		 * @param paraSigt 参数签名数组
+		 * @param paraNameArray 参数名数组
 		 * @param asynUpdate 是否异步刷新
 		 * */
-		public void showAllPathsData(List<CfgPath> pathList, String[] paraSigt, boolean asynUpdate);
+		public void showAllPathsData(List<CfgPath> pathList, String[] paraNameArray, boolean asynUpdate);
 	}
 	public static interface ICfgViewer {
 		/**
@@ -164,8 +169,7 @@ public class Atg {
 	/** 更新Cfg */
 	public boolean updateCfg(){
 		if(fState == State.Generating ) return false;
-		if(fState.id >= State.Ready.id 
-				&& fState != State.Generating 
+		if(fState.id >= State.Ready.id
 				&& fState != State.Released){
 			this.posttreatment();
 		}
@@ -276,8 +280,6 @@ public class Atg {
 			StringBuilder funcSign = new StringBuilder(funcname);
 			String[] paraStrArray = ASTStringUtil.
 				getParameterSignatureArray(funcdecl);
-			//CPPASTFunctionDeclarator t = ((CPPASTFunctionDeclarator)funcdecl);
-			//t.getParameters();
 			funcSign.append("(");
 			for(int i=0;i<paraStrArray.length;i++)
 			{
@@ -286,48 +288,58 @@ public class Atg {
 					funcSign.append(", ");
 			}
 			funcSign.append(")");
+			//如果签名不一样，继续
+			if(! funcSign.toString().equals(funcSignature)) continue;
 			
-			if(funcSign.toString().equals(funcSignature)){
-				paraSigtArray = paraStrArray;
-				paraCount = paraStrArray.length;
-				functionName = funcname;
-				paraTypeArray = new ArgType[paraCount];
-				for(int i = 0; i < paraCount; i ++){
-					String type = paraSigtArray[i];
-					//带有默认值的参数的类型对应字符串类似：“double=2.0”
-					//所以不使用equals，而使用startsWith
-					int signedindex = type.indexOf("signed");
-					if(signedindex > 0){
-						type = type.substring(signedindex+"signed ".length());
-					}
-					if(type.startsWith("double")){
-						if(type.contains("[]")){
-							paraTypeArray[i] = ArgType.DoubleArray;
-						} else {
-							paraTypeArray[i] = ArgType.Double;
-						}
-					} else if(type.startsWith("float")){
-						if(type.contains("[]")){
-							paraTypeArray[i] = ArgType.FloatArray;
-						} else {
-							paraTypeArray[i] = ArgType.Float;
-						}
-					} else if(type.startsWith("int") || type.startsWith("long int")
-							|| type.equals("long") || type.equals("long=")){
-						paraTypeArray[i] = ArgType.Int32;
-					} else if(type.startsWith("long long")){
-						//long long / long long= / long long int/ long long int=
-						paraTypeArray[i] = ArgType.Int64;
-					} else if(type.startsWith("short")){//short/short=/short int/short int=
-						paraTypeArray[i] = ArgType.Int16;
-					} else if(type.startsWith("char")){//char/char=
-						paraTypeArray[i] = ArgType.Int8;
-					} else {
-						paraTypeArray[i] = ArgType.Unknown;
-					}
+			paraSigtArray = paraStrArray;
+			paraCount = paraStrArray.length;
+			functionName = funcname;
+			paraTypeArray = new ArgType[paraCount];
+			paraNameArray = new String[paraCount];
+			IASTStandardFunctionDeclarator cppfuncdecl = 
+					((IASTStandardFunctionDeclarator)funcdecl);
+			IASTParameterDeclaration[] paradecls = cppfuncdecl.getParameters();
+			for(int i = 0; i < paraCount; i ++){
+				String type = paraSigtArray[i];
+				//带有默认值的参数的类型对应字符串类似：“double=2.0”
+				//所以不使用equals，而使用startsWith
+				int signedindex = type.indexOf("signed");
+				if(signedindex > 0){
+					type = type.substring(signedindex+"signed ".length());
 				}
-				return (IASTFunctionDefinition) decln;
+				if(type.startsWith("double")){
+					if(type.contains("[]")){
+						paraTypeArray[i] = ArgType.DoubleArray;
+					} else {
+						paraTypeArray[i] = ArgType.Double;
+					}
+				} else if(type.startsWith("float")){
+					if(type.contains("[]")){
+						paraTypeArray[i] = ArgType.FloatArray;
+					} else {
+						paraTypeArray[i] = ArgType.Float;
+					}
+				} else if(type.startsWith("int") || type.startsWith("long int")
+						|| type.equals("long") || type.equals("long=")){
+					paraTypeArray[i] = ArgType.Int32;
+				} else if(type.startsWith("long long")){
+					//long long / long long= / long long int/ long long int=
+					paraTypeArray[i] = ArgType.Int64;
+				} else if(type.startsWith("short")){//short/short=/short int/short int=
+					paraTypeArray[i] = ArgType.Int16;
+				} else if(type.startsWith("char")){//char/char=
+					paraTypeArray[i] = ArgType.Int8;
+				} else {
+					paraTypeArray[i] = ArgType.Unknown;
+				}
+				
+				IASTName paraname = paradecls[i].getDeclarator().getName();
+				paraNameArray[i] = paraname.getRawSignature();
 			}
+			
+
+			
+			return (IASTFunctionDefinition) decln;
 		}
 		return null;
 	}
@@ -474,16 +486,18 @@ public class Atg {
 			return;
 		}
 		generateThread.stop();//dangerous
-		if(dataViewer != null) {
-			dataViewer.showAllPathsData(cfg.getAllPaths(), paraSigtArray, false);
-		}
+		updateUi(false, true);
 		fState = State.Finished;
 	}
 	
-	/** 更新界面 */
+	/** 
+	 * 更新界面
+	 * @param asynUpdate 是否异步刷新
+	 * @param dataOnly 是否只更新数据显示区域，不更新CFG
+	 *  */
 	private void updateUi(boolean asynUpdate, boolean dataOnly){
 		if(dataViewer != null) {
-			dataViewer.showAllPathsData(this.cfg.getAllPaths(), paraSigtArray, asynUpdate);
+			dataViewer.showAllPathsData(this.cfg.getAllPaths(), paraNameArray, asynUpdate);
 		}
 		if(dataOnly) return;
 		if(this.cfgViewer != null){
@@ -617,7 +631,7 @@ public class Atg {
 					newparaList.add(newParameter);
 					numOfNewParams++;
 				}
-			} // else TODO 为空如何处理
+			}
 			
 			// 如果衍生出的新参数不多于2个，则以当前衍生池边界值向外扩展出新参数
 			if (numOfNewParams <= 2) {
@@ -675,9 +689,10 @@ public class Atg {
 			//TODO 这里我们只处理float类型和double类型
 			if(this.paraTypeArray[i] == ArgType.Float
 					|| this.paraTypeArray[i] == ArgType.Double){
-				if(i == paraIndex ||paraArray == null 
-						|| paraArray[i] == null ){
+				if(i == paraIndex){
 					paras[i] = paraGeneInterval.getRandom();
+				} else if(paraArray == null || paraArray[i] == null){
+					paras[i] = Interval.MAX_INTERVAL.getRandom();
 				} else {
 					paras[i] = paraArray[i];
 				}
@@ -692,7 +707,7 @@ public class Atg {
 			} else if(this.paraTypeArray[i] == ArgType.FloatArray){
 				paras[i] = new Float[]{2.5f, 4.6f};
 			} else if(this.paraTypeArray[i] == ArgType.DoubleArray){
-				paras[i] = new Double[]{98.0, 5.6, 100.5};
+				paras[i] = new Double[]{9.8, 5.6, 10.5};
 			} else if(this.paraTypeArray[i] == ArgType.Unknown){
 				paras[i] = null;
 			}
@@ -712,7 +727,7 @@ public class Atg {
 		//生成的路径恰好是目标路径
 		if(clr.path == targetpath) return null;
 		//添加约束节点运行时的值到约束节点中
-		this.cfg.updateConstraintNode((Double) paraArray[paraIndex], 
+		this.cfg.updateConstraintUnit((Double) paraArray[paraIndex], 
 				clr.innerNodeMap);
 		return clr;
 	}

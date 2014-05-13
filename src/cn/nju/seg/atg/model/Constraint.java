@@ -15,6 +15,9 @@ import org.eclipse.cdt.internal.core.model.ASTStringUtil;
 @SuppressWarnings("restriction")
 public class Constraint {
 	
+	/**
+	 * 原子约束条件类型
+	 * */
 	public static enum CtType {
 		/** 未确定态 */
 		Suspensive("??"),
@@ -41,17 +44,7 @@ public class Constraint {
 			return this.str;
 		}
 	}
-	
-	/**
-	 * 每种类型都可以通过REVERSE_TYPE_ARRAY[CtType+7]来获取相反的类型
-	 * */
-	public static final CtType[] REVERSE_TYPE_ARRAY = new CtType[] {
-		CtType.Suspensive, CtType.Greater, CtType.Less, 
-		CtType.GreaterEqual, CtType.LessEqual, CtType.Equal, CtType.NotEqual,
-		CtType.Suspensive, CtType.Less, CtType.Greater,
-		CtType.LessEqual, CtType.GreaterEqual, CtType.NotEqual, CtType.Equal,
-	};
-	
+
 	/** 
 	 * 当前原子约束条件表达式。
 	 *  */
@@ -65,10 +58,14 @@ public class Constraint {
 	 *  */
 	public CtType curType;
 
-	/** 条件表达式左边的操作数 */
+	/** 条件表达式左边的操作数对应的字符串 */
 	protected String leftOperand;
-	/** 条件表达式右边的操作数 */
+	/** 条件表达式右边的操作数对应的字符串 */
 	protected String rightOperand;
+	/** 左操作数经过去除自增自减操作符后的字符串 */
+	protected String leftString;
+	/** 右操作数经过去除自增自减操作符后的字符串 */
+	protected String rightString;
 	
 	/** 当前约束条件表达式在文件中的偏移量 */
 	protected int offset;
@@ -82,19 +79,6 @@ public class Constraint {
 		this.expression = expression;
 		this.handleExpression(expression);
 		this.curType = this.srcType;
-	}
-	
-	/** 设置约束类型<br />关于反转已经在约束节点中实现
-	 * @param reverse 是否反转原类型
-	 *  */
-	@Deprecated
-	public void setType(boolean reverse){
-		if(reverse){
-			//TODO 使用数组来反转并不是一个好的实现，因为这可能引起更大的时间开销
-			this.curType = REVERSE_TYPE_ARRAY[this.srcType.ordinal() + 7];
-		} else {
-			this.curType = this.srcType;
-		}
 	}
 	
 	/** 处理表达式，如果表达式是一元的，那么添加“!= 0” */
@@ -135,6 +119,8 @@ public class Constraint {
 			this.rightOperand = "0";
 			this.srcType = CtType.NotEqual;
 		}
+		this.leftString = this.leftOperand.replace("++", "").replace("--", "");
+		this.rightString = this.rightOperand.replace("++", "").replace("--", "");
 		//IBasicType type = (IBasicType) expression.getExpressionType();
 		//System.out.println(type);
 	}
@@ -156,9 +142,9 @@ public class Constraint {
 		return this.leftOperand + this.srcType + this.rightOperand;
 	}
 	
-	/** 获取左右操作数相减字符串 */
+	/** 获取左右(去除自增自减)操作数相减字符串 */
 	public String toValueString(){
-		return String.format("((%s)-(%s))", this.leftOperand, this.rightOperand);
+		return String.format("((%s)-(%s))", this.leftString, this.rightString);
 	}
 }
 

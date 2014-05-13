@@ -181,9 +181,11 @@ public class Cfg {
 	}
 	
 	/**
-	 * 更新约束节点
+	 * 更新约束单元
+	 * @param para 当前变化参数值，该值将作为该约束单元函数的变量，即X坐标
+	 * @param nodeMap 约束单元和对应值map，值作为该约束单元的值，即Y坐标
 	 * */
-	public void updateConstraintNode(Double para, 
+	public void updateConstraintUnit(Double para, 
 			Map<CfgConstraintUnit, Double> nodeMap){
 		Set<Entry<CfgConstraintUnit, Double>> nodes = nodeMap.entrySet();
 		for(Entry<CfgConstraintUnit, Double> entry : nodes){
@@ -360,7 +362,11 @@ public class Cfg {
 				for(CfgCondNode tnode : nestedifnodelist){
 					tnode.merge = iterNode;
 				}
-				condnode.then = forbodynode;
+				if(forbodynode == null){//如果循环语句为空，那么其then节点就是迭代节点
+					condnode.then = iterNode;
+				} else {
+					condnode.then = forbodynode;					
+				}
 				condnode.next = null;
 			} else if(astnode instanceof IASTWhileStatement){
 				IASTWhileStatement whilestatement = (IASTWhileStatement)astnode;

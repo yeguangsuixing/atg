@@ -226,7 +226,7 @@ public class CfgCEditor extends CEditor implements IPathShower, ICfgViewer {
 			if(childelse == null){//不存在else节点
 				if(ifnode.line == childline){//处于同一行
 					ifnode.width = SINGLE_NODE_WIDTH + childthen.width
-							+ childwidth;//TODO 
+							+ childwidth;
 				} else {
 					ifnode.width = childwidth + childthen.width;
 				}
@@ -273,7 +273,7 @@ public class CfgCEditor extends CEditor implements IPathShower, ICfgViewer {
 			if(child == null){
 				leaves.add(fornode);
 			}
-			if(childblockline == fornode.line){//TODO
+			if(childblockline == fornode.line){//TODO 处于同一行
 				fornode.width = SINGLE_NODE_WIDTH + childblockwidth;
 			} else {
 				fornode.width = (child == null?SINGLE_NODE_WIDTH:child.width)

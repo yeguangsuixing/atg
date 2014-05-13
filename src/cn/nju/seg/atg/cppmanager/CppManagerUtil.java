@@ -33,6 +33,7 @@ public class CppManagerUtil {
 	 * @param longArgs long类型参数数组
 	 * @param floatArgs float类型参数数组
 	 * @param doubleArgs double类型参数数组
+	 * @param arrayEntries 参数数组的长度数组
 	 * @return <div>执行结果</div>
 	 * <div>第一个字节是0/1，1-成功，0-失败；</div>
 	 * <div>第二个字节是一个换行符(\n)；</div>

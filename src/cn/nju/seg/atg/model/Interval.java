@@ -22,6 +22,8 @@ public class Interval {
 	public static final double GOLDEN_RATIO_GREATER = (Math.sqrt(5)-1)/2.0;
 	
 	public static final double GOLDEN_RATIO_LESS = 1.0 - GOLDEN_RATIO_GREATER;
+	
+	public static final Interval MAX_INTERVAL = new Interval(-1000, 1000);
 	/**
 	 * 创建一个全集区间(-Double.MIN_VALUE, Double.MAX_VALUE]
 	 * */
