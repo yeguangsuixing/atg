@@ -33,7 +33,9 @@ public class AtgRunHandler extends AbstractHandler {
 				MessageDialog.openError(window.getShell(), "Atg", msg);
 			}
 			
-		}, AtgActivator.getDefault().getCfgCEditor().getCurrentCppFilePath());
+		}, 
+		AtgActivator.getDefault().getCfgCEditor().getCurrentCppFileDir(),
+		AtgActivator.getDefault().getCfgCEditor().getCurrentCppFilePath());
 		return null;
 	}
 }

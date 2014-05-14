@@ -1,8 +1,8 @@
 package cn.nju.seg.atg.plugin;
 
+import org.eclipse.cdt.ui.newui.MultiLineTextFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
 import org.eclipse.jface.preference.IntegerFieldEditor;
-import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -21,11 +21,11 @@ public class AtgPreferencePage extends FieldEditorPreferencePage
 	}
 	
 	public void createFieldEditors() {
-		addField( new IntegerFieldEditor(PreferenceConstants.NR_DETECT, 
-				"Number of D&etect:", getFieldEditorParent()));
 		addField( new IntegerFieldEditor(PreferenceConstants.NR_CIRCLE, 
 				"Number of &Cycle:", getFieldEditorParent()));
-		addField( new StringFieldEditor(PreferenceConstants.CMD_COMPILE, 
+		addField( new IntegerFieldEditor(PreferenceConstants.NR_DETECT, 
+				"Number of D&etect:", getFieldEditorParent()));
+		addField( new MultiLineTextFieldEditor(PreferenceConstants.CMD_COMPILE, 
 				"Co&mpiling Command:", getFieldEditorParent()));
 	}
 	

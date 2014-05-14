@@ -1,5 +1,6 @@
 package cn.nju.seg.atg.plugin;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Set;
 
 import org.eclipse.cdt.internal.ui.editor.CEditor;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -432,6 +434,28 @@ public class CfgCEditor extends CEditor implements IPathShower, ICfgViewer {
 	public String getCurrentCppFilePath(){
 		IFile ifile = ((IFileEditorInput)(getEditorInput())).getFile();
 		return ifile.getLocationURI().getPath();
+	}
+	/** 获取当前编辑器所编辑的cpp文件所在目录 */
+	public String getCurrentCppFileDir(){
+		IFile ifile = ((IFileEditorInput)(getEditorInput())).getFile();
+		String path = null;
+		try {
+			path = FileLocator.toFileURL(ifile.getLocationURI().toURL()).getPath();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+		int t = path.lastIndexOf("\\");
+		int s = path.lastIndexOf("/");
+		int r = Math.max(t, s);
+		if(r < 0){
+			return null;
+		}
+		if(path.startsWith("/")){
+			return path.substring(1, r);
+		} else {
+			return path.substring(0, r);
+		}
 	}
 }
 

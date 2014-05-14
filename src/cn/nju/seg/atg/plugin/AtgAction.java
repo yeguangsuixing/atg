@@ -56,7 +56,7 @@ public class AtgAction implements IObjectActionDelegate {
 		if(!rsl) return;
 		rsl = atg.generateCfg(true);
 		if(!rsl) return;
-		atg.pretreatment(cfgCEditor.getCurrentCppFilePath());
+		atg.pretreatment(cfgCEditor.getCurrentCppFileDir(), cfgCEditor.getCurrentCppFilePath());
 		atg.generateData();
 		//atg.posttreatment();
 		

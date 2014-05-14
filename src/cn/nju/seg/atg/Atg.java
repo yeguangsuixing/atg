@@ -372,7 +372,7 @@ public class Atg {
 	 * <li>(2). 编译插桩后的程序为动态库</li>
 	 * <li>(3). 加载编译后的动态库 </li>
 	 * */
-	public boolean pretreatment(String cppfilename){
+	public boolean pretreatment(String workdir, String cppfilename){
 		lastCppFileName = cppfilename;
 		if(fState != State.Cfg){
 			console.println(ERR_STATE);
@@ -386,7 +386,7 @@ public class Atg {
 			return false;
 		}
 		//2. 编译
-		CompileResult cr = this.cppManager.compile(ir.outputFilenName);
+		CompileResult cr = this.cppManager.compile(workdir, ir.outputFilenName, console);
 		if(!cr.succeed){
 			console.println(String.format(ERR_COMPILE, cr.msg));
 			return false;
@@ -443,7 +443,7 @@ public class Atg {
 	 * @param shower 错误显示器
 	 * @param cppfileName 源文件名
 	 * */
-	public void run(IMsgShower shower, String cppfileName){
+	public void run(IMsgShower shower, String workdir, String cppfileName){
 		if(fState == State.Generating){
 			if(shower != null){
 				shower.showMsg(ERR_RUNNING);
@@ -455,7 +455,7 @@ public class Atg {
 				shower.showMsg(ERR_UPDATE_CFG_FAILED);
 			}
 		}
-		if(!pretreatment(lastCppFileName)){
+		if(!pretreatment(workdir, lastCppFileName)){
 			return;
 		}
 		generateData();

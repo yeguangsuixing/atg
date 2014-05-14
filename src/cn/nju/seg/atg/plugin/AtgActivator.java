@@ -3,6 +3,7 @@ package cn.nju.seg.atg.plugin;
 import java.io.PrintStream;
 
 import org.eclipse.cdt.internal.ui.editor.CEditor;
+import org.eclipse.jface.util.Util;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.PartInitException;
@@ -30,6 +31,28 @@ public class AtgActivator extends AbstractUIPlugin {
 			"cn.nju.seg.atg.plugin.cfgceditor";
 	// The shared instance
 	private static AtgActivator plugin;
+	
+	/**
+	 * 操作系统类型
+	 * @author ygsx
+	 * @time 2014/05/14 11:02
+	 * */
+	public static enum OperatingSystem {
+		Unknown,
+		Linux, 
+		Windows
+	}
+	/** 当前操作系统类型 */
+	public static OperatingSystem OS = OperatingSystem.Unknown;
+	
+
+	static {
+		if(Util.isLinux()){
+			OS = OperatingSystem.Linux;
+		} else if(Util.isWindows()){
+			OS = OperatingSystem.Windows;
+		}
+	}
 
 	/** ATG控制台 */
 	/*default*/ MessageConsole fConsole = new MessageConsole("ATG Console",null);

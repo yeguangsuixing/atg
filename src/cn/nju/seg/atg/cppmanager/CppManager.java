@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.URL;
 import java.text.DateFormat;
@@ -27,6 +28,7 @@ import cn.nju.seg.atg.cfg.CfgNode;
 import cn.nju.seg.atg.cfg.CfgNode.Type;
 import cn.nju.seg.atg.cfg.CfgPath;
 import cn.nju.seg.atg.plugin.AtgActivator;
+import cn.nju.seg.atg.plugin.AtgActivator.OperatingSystem;
 import cn.nju.seg.atg.plugin.PreferenceConstants;
 
 
@@ -50,7 +52,9 @@ public class CppManager {
 	 * @time 2014/04/26 14:00
 	 * */
 	public static class CompileResult extends OpResult {
-		/** 目标共享对象文件名 */
+		/** 
+		 * 动态库(Shared-Object/Dynamic Linking Library)/文件名，在windows下是dll文件，在Linux下是so文件
+		 *  */
 		public String sofileName;
 		/** 编译起始时间 */
 		public Date startTime;
@@ -78,23 +82,7 @@ public class CppManager {
 		/** 插桩输出文件名 */
 		public String outputFilenName;
 	}
-	
-	private static final String STR_FUNC_EXTERN_C = "extern \"C\" ";
-	//此处的返回值只是为了for循环语句中的变量定义通过编译，并不使用其返回值
-	private static final String STR_FUNC_DECL = 
-			"int (*_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path)(int, double),";
-	private static final String STR_FUNC_CALL = 
-			"_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
-	
-	private static final String FOR_INIT_VAR_DEF = 
-			"_cn_nju_seg_atg_for_var%d = "
-			+ "_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
-	private static int FOR_INIT_VAR_NO = 0;
-	
-	public static final String DEFAULT_CMD_COMPILE = 
-			"gcc -shared -fpic -m32 -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
-	
-	private static final DateFormat DATE_FMT = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+
 	/**
 	 * 参数类型
 	 * @author ygsx
@@ -114,6 +102,54 @@ public class CppManager {
 		/** 如果变量类型经过宏定义/或者是复合数据类型，那么暂时不考虑 */
 		Unknown
 	}
+
+	
+	static {
+		try{
+			String sodllfilename = null;
+			if(AtgActivator.OS == OperatingSystem.Linux){
+				sodllfilename = "lib/CppManagerUtil.so";
+			} else if(AtgActivator.OS == OperatingSystem.Windows){
+				sodllfilename = "lib/CppManagerUtil.dll";
+			}
+			Bundle bundle = Platform.getBundle(AtgActivator.PLUGIN_ID);
+			URL sodllUrl = bundle.getResource(sodllfilename);
+			String sodll = FileLocator.toFileURL(sodllUrl).getPath();
+			System.load(sodll);
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+
+	private static final String STR_FUNC_EXTERN_C = "extern \"C\" ";
+	private static final String STR_FUNC_EXTERN_C_WIN32 = 
+			"extern \"C\" __declspec(dllexport) ";
+	//此处的返回值只是为了for循环语句中的变量定义通过编译，并不使用其返回值
+	private static final String STR_FUNC_DECL = 
+			"int (*_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path)(int, double),";
+	private static final String STR_FUNC_CALL = 
+			"_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
+	
+	private static final String FOR_INIT_VAR_DEF = 
+			"_cn_nju_seg_atg_for_var%d = "
+			+ "_cn_nju_seg_atg_cpppathrec_putNodeNumber2Path(%d, %s)";
+	private static int FOR_INIT_VAR_NO = 0;
+	
+	private static final String STR_ERR_CMD = "Command error.(cmd=%s)";
+	
+	private static final String STR_ERR_CPP_URI_OVERFLOW = "Cpp Uri is too long(>255)! ";
+	
+	private static final String STR_C_DECL = " __cdecl ";
+	
+	private static final String STR_PREFIX_ENV_LINUX = "export ";
+	private static final String STR_PREFIX_ENV_WINDOWS = "set ";
+	
+	public static final String DEFAULT_CMD_COMPILE = 
+			"gcc -shared -fpic -m32 -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
+	
+	
+	
+	private static final DateFormat DATE_FMT = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
 	
 	/** 最大加载数量 */
 	public static final int MAX_LOAD_SIZE = 10;
@@ -130,20 +166,13 @@ public class CppManager {
 	 * */
 	private List<LoadResult> loadList = new ArrayList<LoadResult>(MAX_LOAD_SIZE);
 	
+			
 	/** 不允许直接生成实例
 	 * @see #getInstance()
 	 *  */
 	private CppManager(){
 		for(int i = 0; i < CppManager.MAX_LOAD_SIZE; i ++){
 			this.loadList.add(null);
-		}
-		try{
-			Bundle bundle = Platform.getBundle(AtgActivator.PLUGIN_ID);
-			URL soUrl = bundle.getResource("lib/CppManagerUtil.so");
-			String so = FileLocator.toFileURL(soUrl).getPath();
-			System.load(so);
-		} catch(Exception e){
-			e.printStackTrace();
 		}
 		util = new CppManagerUtil();
 		util.init();
@@ -157,54 +186,102 @@ public class CppManager {
 	
 	/**
 	 * 编译一个C++文件
+	 * @param workdirstr 当前工作目录
 	 * @param cppfilename 要编译的c++文件名(已插桩)
+	 * @param printStream 输出流
 	 * @return 是否编译成功
 	 * */
-	public CompileResult compile(String cppfilename){
+	public CompileResult compile(String workdirstr, String cppfilename, PrintStream printStream){
 		CompileResult cr = new CompileResult();
-		cr.sofileName = CppManager.generateSoFileName(cppfilename);
-		Process p = null;
+		//generate output files' names
+		int dotindex = cppfilename.lastIndexOf(".");
+		String filename = cppfilename;
+		if(dotindex > 0) {
+			filename = cppfilename.substring(0, dotindex);
+		}
+		String sofileName = filename + ".so";
+		String dllfileName = filename + ".dll";
+		String objfileName = filename + ".obj";
+		String expfileName = filename + ".exp";
+		String libfileName = filename + ".lib";
+		if(AtgActivator.OS == OperatingSystem.Windows){
+			cr.sofileName = dllfileName;
+		} else if(AtgActivator.OS == OperatingSystem.Linux){
+			cr.sofileName = sofileName;
+		}
 		cr.startTime = new Date();
-
+		//
 		String compileCmd = AtgActivator.getDefault().getPreferenceStore()
 				.getString(PreferenceConstants.CMD_COMPILE);
-		compileCmd = compileCmd.replace("$OUT_SO_FILE_NAME", cr.sofileName);
+		compileCmd = compileCmd.replace("$OUT_SO_FILE_NAME", sofileName);
+		compileCmd = compileCmd.replace("$OUT_DLL_FILE_NAME", dllfileName);
+		compileCmd = compileCmd.replace("$OUT_OBJ_FILE_NAME", objfileName);
+		compileCmd = compileCmd.replace("$OUT_EXP_FILE_NAME", expfileName);
+		compileCmd = compileCmd.replace("$OUT_LIB_FILE_NAME", libfileName);
 		compileCmd = compileCmd.replace("$CPP_FILE_NAME", cppfilename);
-		try {
-			p = Runtime.getRuntime().exec(compileCmd);
-		} catch (IOException e) {
-			e.printStackTrace();
-			cr.msg = e.getMessage();
-			return cr;
+		compileCmd = compileCmd.replace("$WORK_DIR", workdirstr);
+		compileCmd = compileCmd.replace("\r", "");
+		String[] compileCmdArray = compileCmd.split("\n");
+		List<String> envplist = new ArrayList<String>();
+		String envprefix = null;
+		if(AtgActivator.OS == OperatingSystem.Linux){
+			envprefix = CppManager.STR_PREFIX_ENV_LINUX;
+		} else if(AtgActivator.OS == OperatingSystem.Windows){
+			envprefix = CppManager.STR_PREFIX_ENV_WINDOWS;
 		}
-		BufferedReader ireader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		BufferedReader ereader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-		String temp = null;
-		try {
-			cr.succeed = true;
-			while((temp = ireader.readLine()) != null){
-				System.out.println(temp);
-				cr.msg += temp;
+
+		cr.succeed = true;
+		String[] envlistarray = null;
+		Process process = null;
+		boolean change = false;//has env changed
+		File workdir = new File(workdirstr);
+		for(String cmd : compileCmdArray){
+			if(cmd.startsWith(envprefix)){
+				cmd = cmd.substring(envprefix.length());
+				String[] envmap = cmd.split("=");
+				if(envmap.length >= 2){
+					envplist.add(cmd);
+					change = true;
+					continue;
+				} else {
+					cr.msg = String.format(CppManager.STR_ERR_CMD, cmd);
+					break;
+				}
 			}
-			while((temp = ereader.readLine()) != null){
-				System.err.println(temp);
-				cr.msg += temp;
-				cr.succeed = false;
+			if(change){
+				change = false;
+				envlistarray = new String[envplist.size()];//if changed, size is always > 0
+				envplist.toArray(envlistarray);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			printStream.println(cmd);
+			try {
+				process = Runtime.getRuntime().exec(cmd, envlistarray, workdir);
+			} catch (IOException e) {
+				e.printStackTrace();
+				cr.msg = e.getMessage();
+				break;
+			}
+			BufferedReader ireader = new BufferedReader(
+					new InputStreamReader(process.getInputStream()));
+			BufferedReader ereader = new BufferedReader(
+					new InputStreamReader(process.getErrorStream()));
+			String temp = null;
+			try {
+				while((temp = ireader.readLine()) != null){
+					printStream.println(temp);
+					cr.msg += temp;
+				}
+				while((temp = ereader.readLine()) != null){
+					printStream.println(temp);
+					cr.msg += temp;
+					//cr.succeed = false;
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		cr.stopTime = new Date();
 		return cr;
-	}
-	
-	private static String generateSoFileName(String cppfilename){
-		int index = cppfilename.lastIndexOf(".");
-		if(index < 0){
-			return cppfilename + ".so";
-		} else {
-			return cppfilename.substring(0, index) + ".so";
-		}
 	}
 	
 	/**
@@ -226,7 +303,7 @@ public class CppManager {
 				+ CppManager.generateInstrFileName(cppfile.getName());
 		ir.outputFilenName = outfilename;
 		if(outfilename.length() > 255){
-			ir.msg = "Cpp Uri is too long(>255)! ";
+			ir.msg = STR_ERR_CPP_URI_OVERFLOW;
 			return ir;
 		}
 		File outputfile = new File(outfilename);
@@ -247,13 +324,24 @@ public class CppManager {
 		List<CfgNode> nodelist = cfg.getAllNodes();
 		int index = 0;
 		int funcdecloff = cfg.getFuncOffset();
+		int funcnameoff = cfg.getFuncNameOffset();
 		int paradecloff = cfg.getParaDeclOffset();//
 		try {
 			for(; index < funcdecloff; index ++){
 				writer.append(filebuf[index]);
 			}
 			//先写入 extern "C"
-			writer.append(CppManager.STR_FUNC_EXTERN_C);
+			if(AtgActivator.OS == OperatingSystem.Linux){
+				writer.append(CppManager.STR_FUNC_EXTERN_C);
+			} else if(AtgActivator.OS == OperatingSystem.Windows){
+				writer.append(CppManager.STR_FUNC_EXTERN_C_WIN32);
+			}
+			if(AtgActivator.OS == OperatingSystem.Windows){
+				for(; index < funcnameoff; index ++){
+					writer.append(filebuf[index]);
+				}
+				writer.append(CppManager.STR_C_DECL);
+			}
 			for(; index < paradecloff; index ++){
 				writer.append(filebuf[index]);
 			}
@@ -502,8 +590,10 @@ public class CppManager {
 		}
 		cr.succeed = rsl.charAt(0) == '1';
 		cr.msg = rsl.substring(2);
-		cr.path = this.cfg.getPathFromString(cr.msg, ",");
-		cr.innerNodeMap = getConstraintUnitExecInfo();
+		if(cr.succeed){
+			cr.path = this.cfg.getPathFromString(cr.msg, ",");
+			cr.innerNodeMap = getConstraintUnitExecInfo();
+		}
 		return cr;
 	}
 	

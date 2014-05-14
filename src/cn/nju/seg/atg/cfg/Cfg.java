@@ -95,6 +95,10 @@ public class Cfg {
 		return this.ast.getFileLocation().getNodeOffset();
 	}
 	
+	public int getFuncNameOffset(){
+		return this.ast.getDeclarator().getFileLocation().getNodeOffset();
+	}
+	
 	/**
 	 * 获取控制流图入口
 	 * @return 控制流图入口
