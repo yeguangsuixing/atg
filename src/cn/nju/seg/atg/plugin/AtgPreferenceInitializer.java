@@ -4,6 +4,7 @@ import org.eclipse.core.runtime.preferences.AbstractPreferenceInitializer;
 import org.eclipse.jface.preference.IPreferenceStore;
 
 import cn.nju.seg.atg.cppmanager.CppManager;
+import cn.nju.seg.atg.plugin.AtgActivator.OperatingSystem;
 
 
 /**
@@ -26,8 +27,15 @@ public class AtgPreferenceInitializer extends AbstractPreferenceInitializer {
 		
 		store.setDefault(PreferenceConstants.NR_DETECT, Integer.toString(300));
 		store.setDefault(PreferenceConstants.NR_CIRCLE, Integer.toString(5));
-		store.setDefault(PreferenceConstants.CMD_COMPILE, 
-				CppManager.DEFAULT_CMD_COMPILE);
+		if(AtgActivator.OS == OperatingSystem.Linux){
+			store.setDefault(PreferenceConstants.CMD_COMPILE, 
+					CppManager.DEFAULT_CMD_COMPILE_LINUX);
+		} else if(AtgActivator.OS == OperatingSystem.Windows){
+			store.setDefault(PreferenceConstants.CMD_COMPILE, 
+					CppManager.DEFAULT_CMD_COMPILE_WINDOWS);
+		} else {
+			store.setDefault(PreferenceConstants.CMD_COMPILE, "");
+		}
 	}
 
 }

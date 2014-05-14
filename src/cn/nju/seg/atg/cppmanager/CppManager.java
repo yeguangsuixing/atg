@@ -144,9 +144,16 @@ public class CppManager {
 	private static final String STR_PREFIX_ENV_LINUX = "export ";
 	private static final String STR_PREFIX_ENV_WINDOWS = "set ";
 	
-	public static final String DEFAULT_CMD_COMPILE = 
+	public static final String DEFAULT_CMD_COMPILE_LINUX = 
 			"gcc -shared -fpic -m32 -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
 	
+	public static final String DEFAULT_CMD_COMPILE_WINDOWS =
+			"set Path=C:\\Program Files\\Microsoft Visual Studio 10.0\\Common7\\IDE;\r\n"
+			+ "set INCLUDE=C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\include;C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Include;\r\n"
+			+ "set LIB=C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\lib;C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\Lib;\r\n"
+			+ "set TMP=$WORK_DIR\r\n"
+			+ "\"C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\bin\\cl.exe\" \"$CPP_FILE_NAME\" /c /LD /Fo\"$OUT_OBJ_FILE_NAME\"\r\n"
+			+ "\"C:\\Program Files\\Microsoft Visual Studio 10.0\\VC\\bin\\link.exe\" \"$OUT_OBJ_FILE_NAME\" /DLL /out:\"$OUT_DLL_FILE_NAME\" ";
 	
 	
 	private static final DateFormat DATE_FMT = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
