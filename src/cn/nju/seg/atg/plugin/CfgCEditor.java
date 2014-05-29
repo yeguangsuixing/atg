@@ -158,7 +158,9 @@ public class CfgCEditor extends CEditor implements IPathShower, ICfgViewer {
 			List<GraphNode> innerleaves = new ArrayList<GraphNode>(2);
 			GraphNode child = handleCfgNode(cfgNode.getNext(), lastForNode, 
 					baseNode, newnode, stopNode, innerleaves, reachable);
-			leaves.addAll(innerleaves);
+			if(leaves != null){
+				leaves.addAll(innerleaves);
+			}
 			newnode.width = child.width;
 			newnode.next = child;
 			if(newnode.line == child.line){//处于同一行

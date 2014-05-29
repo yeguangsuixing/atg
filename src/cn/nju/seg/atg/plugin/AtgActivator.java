@@ -1,6 +1,7 @@
 package cn.nju.seg.atg.plugin;
 
 import java.io.PrintStream;
+import java.util.List;
 
 import org.eclipse.cdt.internal.ui.editor.CEditor;
 import org.eclipse.jface.util.Util;
@@ -11,10 +12,13 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.console.ConsolePlugin;
 import org.eclipse.ui.console.IConsole;
 import org.eclipse.ui.console.MessageConsole;
+import org.eclipse.ui.console.MessageConsoleStream;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
 import cn.nju.seg.atg.Atg;
+import cn.nju.seg.atg.AtgReport;
+import cn.nju.seg.atg.cfg.CfgPath;
 
 /**
  * The activator class controls the plug-in life cycle
@@ -72,9 +76,12 @@ public class AtgActivator extends AbstractUIPlugin {
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		plugin = this;
-		ConsolePlugin.getDefault().getConsoleManager().addConsoles(
-				new IConsole[]{fConsole});
-		fAtg = new Atg(fConsole.newMessageStream());
+		ConsolePlugin.getDefault().getConsoleManager()
+			.addConsoles(new IConsole[]{fConsole});
+		MessageConsoleStream stream = 
+				fConsole.newMessageStream();
+		fAtg = new Atg(stream);
+		fAtg.setAtgReportViewer(new ReportViewer(stream));
 	}
 
 	/*
@@ -123,6 +130,65 @@ public class AtgActivator extends AbstractUIPlugin {
 	
 
 }
+
+class ReportViewer implements Atg.IAtgReportViewer {
+
+	private MessageConsoleStream stream;
+	
+	private static final String REPORT_TEMPLATE
+			= "\n-----------ATG Report-----------\n"
+			+ "File:%s\n"
+			+ "Func:%s\n"
+			+ "Start:\t%s\n"
+			+ "Stop:\t%s\n"
+			+ "Tick:%d(Algo:%d, Prog:%d)\n"
+			+ "Cover:%f(%d/%d)\n"
+			+ "Total-Dtct:%d\n"
+			+ "Avg-Dtct:%f\n"
+			+ "Path Detail:\n"
+			+ "Id\tDetect\tCovered nodes\tTotal nodes\n%s";
+	private static final String PATH_INFO_TEMPLATE
+			= "%d\t%d\t%d\t%d\n";
+	
+	public ReportViewer(MessageConsoleStream stream){
+		this.stream = stream;
+	}
+	
+	@Override
+	public void showReport(AtgReport report) {
+		StringBuilder sb = new StringBuilder();
+		List<CfgPath> pathlist = report.getPathList();
+		for(CfgPath path : pathlist){
+			sb.append(String.format(PATH_INFO_TEMPLATE, 
+					path.getId(), path.getDetect(),
+					path.getCoverredNodeCount(),
+					path.getPath().size()));
+		}
+		String reportString = String.format(REPORT_TEMPLATE, 
+				report.getProgramFile(),
+				report.getFuncSignature(),
+				report.getStartTime(),
+				report.getStopTime(),
+				report.getTotalTick(),
+				report.getAlgorithmTick(),
+				report.getProgramTick(),
+				report.getAverageCoverRatio(),
+				report.getCoveredPathCount(),
+				report.getPathCount(),
+				report.getTotalDetect(),
+				report.getAverageDetect(),
+				sb.toString()
+				);
+		stream.println(reportString);
+	}
+	
+}
+
+
+
+
+
+
 
 
 

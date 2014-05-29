@@ -3,6 +3,7 @@ package cn.nju.seg.atg;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.eclipse.cdt.core.dom.ast.IASTDeclaration;
@@ -27,7 +28,7 @@ import cn.nju.seg.atg.cppmanager.CppManager;
 import cn.nju.seg.atg.cppmanager.CppManager.ArgType;
 import cn.nju.seg.atg.cppmanager.CppManager.CallResult;
 import cn.nju.seg.atg.cppmanager.CppManager.CompileResult;
-import cn.nju.seg.atg.cppmanager.CppManager.IstrumentResult;
+import cn.nju.seg.atg.cppmanager.CppManager.InstrumentResult;
 import cn.nju.seg.atg.cppmanager.CppManager.LoadResult;
 import cn.nju.seg.atg.model.Interval;
 import cn.nju.seg.atg.plugin.AtgActivator;
@@ -69,6 +70,7 @@ public class Atg {
 	
 	private LoadResult loadSoObject;
 	
+	private AtgReport atgReport;
 	
 	/** 测试数据生成线程 */
 	private Thread generateThread;
@@ -110,7 +112,8 @@ public class Atg {
 		 * @param paraNameArray 参数名数组
 		 * @param asynUpdate 是否异步刷新
 		 * */
-		public void showAllPathsData(List<CfgPath> pathList, String[] paraNameArray, boolean asynUpdate);
+		public void showAllPathsData(List<CfgPath> pathList, ArgType[] paraTypeArray, 
+				String[] paraNameArray, boolean asynUpdate);
 	}
 	public static interface ICfgViewer {
 		/**
@@ -119,12 +122,21 @@ public class Atg {
 		 * */
 		public void updateCfg(CfgNode cfgEntry);
 	}
+	
+	public static interface IAtgReportViewer{
+		/**
+		 * 显示评估报告
+		 * @param report 评估报告
+		 * */
+		public void showReport(AtgReport report);
+	}
 	public static interface IMsgShower {
 		public void showMsg(String msg);
 	}
 	
 	IArgDataViewer dataViewer;
 	ICfgViewer cfgViewer;
+	IAtgReportViewer reportViewer;
 	
 	/** 当前生成器状态 */
 	private enum State {
@@ -139,7 +151,9 @@ public class Atg {
 		/** 正在生成测试数据 */
 		Generating(4),
 		/** 完成测试数据的生成 */
-		Finished(5),
+		Generated(5),
+		/** 完成报告 */
+		Finished(6),
 		/** 已经释放了资源（动态库） */
 		Released(6);
 		
@@ -196,8 +210,12 @@ public class Atg {
 	}
 	
 	/** 设置控制流图显示器 */
-	public void setCfgViewer(ICfgViewer viewer){
-		this.cfgViewer = viewer;
+	public void setCfgViewer(ICfgViewer cfgViewer){
+		this.cfgViewer = cfgViewer;
+	}
+	/** 设置评估报告显示器 */
+	public void setAtgReportViewer(IAtgReportViewer reportViewer){
+		this.reportViewer = reportViewer;
 	}
 	
 	/** 
@@ -379,7 +397,7 @@ public class Atg {
 			return false;
 		}
 		//1. 插桩
-		IstrumentResult ir = this.cppManager.instrument(
+		InstrumentResult ir = this.cppManager.instrument(
 				function.getLocationURI(), cfg);
 		if(!ir.succeed){
 			console.println(String.format(ERR_INSTRUMENT, ir.msg));
@@ -417,6 +435,8 @@ public class Atg {
 			return;
 		}
 		updateUi(false, false);
+		atgReport = new AtgReport(lastCppFileName, functionSignature, 
+				new Date(), cfg.getAllPaths());
 		generateThread = new Thread(new Runnable(){
 			@Override
 			public void run() {
@@ -424,7 +444,10 @@ public class Atg {
 				//生成测试数据
 				geneTestData(cfg.getAllPaths());
 				updateUi(true, true);
-				fState = State.Finished;
+				fState = State.Generated;
+				atgReport.setStopTime();
+				//生成评估报告
+				report();
 			}
 		});
 		generateThread.start();
@@ -438,8 +461,9 @@ public class Atg {
 		fState = State.Released;
 	}
 	
+
 	/**
-	 * 一“键”运行
+	 * 一“键”运行，包括更新CFG、预处理、生成测试数据及评估报告
 	 * @param shower 错误显示器
 	 * @param cppfileName 源文件名
 	 * */
@@ -487,7 +511,24 @@ public class Atg {
 		}
 		generateThread.stop();//dangerous
 		updateUi(false, true);
-		fState = State.Finished;
+		this.fState = State.Generated;
+		this.atgReport.setStopTime();
+		this.report();
+	}
+	
+	/**
+	 * 生成评估报告
+	 * @return 是否生成成功
+	 * */
+	public boolean report(){
+		if(this.atgReport == null
+				|| this.fState.id < State.Generated.id) return false;
+		atgReport.calculate();
+		if(reportViewer != null){
+			reportViewer.showReport(atgReport);
+		}
+		this.fState = State.Finished;
+		return true;
 	}
 	
 	/** 
@@ -497,7 +538,8 @@ public class Atg {
 	 *  */
 	private void updateUi(boolean asynUpdate, boolean dataOnly){
 		if(dataViewer != null) {
-			dataViewer.showAllPathsData(this.cfg.getAllPaths(), paraNameArray, asynUpdate);
+			dataViewer.showAllPathsData(this.cfg.getAllPaths(), 
+					this.paraTypeArray, this.paraNameArray, asynUpdate);
 		}
 		if(dataOnly) return;
 		if(this.cfgViewer != null){
@@ -715,10 +757,13 @@ public class Atg {
 		return paras;
 	}
 	
+	
 	private CallResult callFunction(Object[] paraArray, CfgPath targetpath, 
 			int paraIndex){
+		targetpath.Detect();
 		CallResult clr = cppManager.callFunction(loadSoObject, 
 				this.functionName, this.paraTypeArray, paraArray);
+		atgReport.addProgTick(clr.stop - clr.start);
 		if(!clr.succeed || clr.path == null){//运行出错
 			console.println(String.format(ERR_RUN, clr.msg));
 			return null;

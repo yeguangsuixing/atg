@@ -61,7 +61,7 @@ public class CppManager {
 		/** 编译完成/停止时间 */
 		public Date stopTime;
 		/** g++编译返回的信息 */
-		public String msg;//覆盖父类成员
+		//public String msg;//覆盖父类成员
 	}
 	/** 调用函数执行结果类
 	 * @author ygsx
@@ -72,13 +72,15 @@ public class CppManager {
 		public CfgPath path;
 		/** 内部节点运行值 */
 		public Map<CfgConstraintUnit, Double> innerNodeMap;
+		
+		public long start, stop;
 	}
 	
 	public static class LoadResult extends OpResult {
 		/** 当前加载结果索引 */
-		/*default*/ int index;
+		private int index;
 	}
-	public static class IstrumentResult extends OpResult{
+	public static class InstrumentResult extends OpResult{
 		/** 插桩输出文件名 */
 		public String outputFilenName;
 	}
@@ -139,10 +141,10 @@ public class CppManager {
 	
 	private static final String STR_ERR_CPP_URI_OVERFLOW = "Cpp Uri is too long(>255)! ";
 	
-	private static final String STR_C_DECL = " __cdecl ";
+	private static final String STR_FUNC_C_DECL = " __cdecl ";
 	
-	private static final String STR_PREFIX_ENV_LINUX = "export ";
-	private static final String STR_PREFIX_ENV_WINDOWS = "set ";
+	private static final String STR_PREFIX_ENV_LINUX = "export";
+	private static final String STR_PREFIX_ENV_WINDOWS = "set";
 	
 	public static final String DEFAULT_CMD_COMPILE_LINUX = 
 			"gcc -shared -fpic -m32 -o $OUT_SO_FILE_NAME $CPP_FILE_NAME ";
@@ -236,18 +238,17 @@ public class CppManager {
 		} else if(AtgActivator.OS == OperatingSystem.Windows){
 			envprefix = CppManager.STR_PREFIX_ENV_WINDOWS;
 		}
-
+		
 		cr.succeed = true;
 		String[] envlistarray = null;
 		Process process = null;
 		boolean change = false;//has env changed
-		File workdir = new File(workdirstr);
 		for(String cmd : compileCmdArray){
 			if(cmd.startsWith(envprefix)){
 				cmd = cmd.substring(envprefix.length());
 				String[] envmap = cmd.split("=");
 				if(envmap.length >= 2){
-					envplist.add(cmd);
+					envplist.add(cmd.trim());
 					change = true;
 					continue;
 				} else {
@@ -262,7 +263,7 @@ public class CppManager {
 			}
 			printStream.println(cmd);
 			try {
-				process = Runtime.getRuntime().exec(cmd, envlistarray, workdir);
+				process = Runtime.getRuntime().exec(cmd, envlistarray, null);
 			} catch (IOException e) {
 				e.printStackTrace();
 				cr.msg = e.getMessage();
@@ -297,9 +298,9 @@ public class CppManager {
 	 * @param cfg cpp文件对应的控制流对象
 	 * @param 操作结果，包含是否插桩成功等信息
 	 * */
-	public IstrumentResult instrument(URI cppUri, final Cfg cfg){
+	public InstrumentResult instrument(URI cppUri, final Cfg cfg){
 		this.cfg = cfg;
-		IstrumentResult ir = new IstrumentResult();
+		InstrumentResult ir = new InstrumentResult();
 		if(cppUri == null || cfg == null) {
 			ir.msg = "Illegal Argument(s)! ";
 			return ir;
@@ -343,11 +344,12 @@ public class CppManager {
 			} else if(AtgActivator.OS == OperatingSystem.Windows){
 				writer.append(CppManager.STR_FUNC_EXTERN_C_WIN32);
 			}
+			//如果是windows 还需要写入 “__cdecl”
 			if(AtgActivator.OS == OperatingSystem.Windows){
 				for(; index < funcnameoff; index ++){
 					writer.append(filebuf[index]);
 				}
-				writer.append(CppManager.STR_C_DECL);
+				writer.append(CppManager.STR_FUNC_C_DECL);
 			}
 			for(; index < paradecloff; index ++){
 				writer.append(filebuf[index]);
@@ -587,8 +589,10 @@ public class CppManager {
 				jarrayEntries[--arraycount] = da.length;
 			}
 		}
+		cr.start = System.currentTimeMillis();
 		String rsl = util.call(lr.index, funcname, argt.length, jargt, 
 				jbargs, jcargs, jiargs, jlargs, jfargs, jdargs, jarrayEntries);
+		cr.stop = System.currentTimeMillis();
 		//System.out.println("result:"+rsl);
 		if(rsl == null || rsl.length() < 3){
 			cr.msg = null;

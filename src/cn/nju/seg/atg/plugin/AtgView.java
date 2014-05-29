@@ -27,6 +27,7 @@ import org.osgi.framework.Bundle;
 
 import cn.nju.seg.atg.Atg.IArgDataViewer;
 import cn.nju.seg.atg.cfg.CfgPath;
+import cn.nju.seg.atg.cppmanager.CppManager.ArgType;
 
 
 /**
@@ -121,16 +122,44 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	/** 参数数据节点 */
 	class AtgParaDataTreeNode extends TreeObject {
 
-		public AtgParaDataTreeNode(String[] paraSigt, Object[] paras) {
+		public AtgParaDataTreeNode(ArgType[] paraTypes, String[] paraSigts, Object[] paras) {
 			super(null);
 			StringBuilder sb = new StringBuilder();
 			for(int i = 0; i < paras.length; i ++){
-				String parasigt = paraSigt[i];
+				String parasigt = paraSigts[i];
 				Object para = paras[i];
-				sb.append(parasigt);
-				sb.append("=");
-				sb.append(para);
-				sb.append(", ");
+				if(paraTypes[i] == ArgType.FloatArray ){
+					Float[] fa = (Float[])para;
+					sb.append(parasigt);
+					sb.append("[");
+					sb.append(fa.length);
+					sb.append("]={");
+					for(Float f : fa){
+						sb.append(f);
+						sb.append(", ");
+					}
+					sb.deleteCharAt(sb.length()-2);
+					sb.append("}");
+					sb.append(", ");
+				} else if(paraTypes[i] == ArgType.DoubleArray ){
+					Double[] da = (Double[])para;
+					sb.append(parasigt);
+					sb.append("[");
+					sb.append(da.length);
+					sb.append("]={");
+					for(Double d : da){
+						sb.append(d);
+						sb.append(", ");
+					}
+					sb.deleteCharAt(sb.length()-2);
+					sb.append("}");
+					sb.append(", ");
+				} else {
+					sb.append(parasigt);
+					sb.append("=");
+					sb.append(para);
+					sb.append(", ");
+				}
 			}
 			this.name = sb.toString();
 		}
@@ -246,13 +275,14 @@ public class AtgView extends ViewPart implements IArgDataViewer{
 	}
 	
 	@Override
-	public void showAllPathsData(List<CfgPath> pathList, String[] paraNameArray, boolean asynUpdate){
+	public void showAllPathsData(List<CfgPath> pathList, ArgType[] paraTypeArray, String[] paraNameArray, boolean asynUpdate){
 		invisibleRoot.removeAllChildren();
 		for(CfgPath path : pathList){
 			CfgPathTreeNode pathnode = new CfgPathTreeNode(path);
 			for(int i = 0; i < path.getParasListSize(); i ++){
 				Object[] paras = path.getParas(i);
-				AtgParaDataTreeNode node = new AtgParaDataTreeNode(paraNameArray, paras);
+				AtgParaDataTreeNode node = new AtgParaDataTreeNode(paraTypeArray, 
+						paraNameArray, paras);
 				pathnode.addChild(node);
 			}
 			invisibleRoot.addChild(pathnode);

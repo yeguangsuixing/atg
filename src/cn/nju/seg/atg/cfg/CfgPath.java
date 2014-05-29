@@ -29,11 +29,14 @@ public class CfgPath {
 	 *  */
 	private List<Object[]> parasList;
 	
+	/** detect count */
+	int detect;
 	
 	public CfgPath(){
 		this.id = ++ID;
 		this.path = new ArrayList<CfgNode>(20);
 		this.parasList = new ArrayList<Object[]>();
+		this.detect = 0;
 	}
 	
 	public int getId(){
@@ -42,6 +45,14 @@ public class CfgPath {
 	
 	public boolean isCoverred(){
 		return this.isCoverred;
+	}
+	/** 增加探测次数 */
+	public void Detect(){
+		this.detect++;
+	}
+	/** 获取探测次数 */
+	public int getDetect(){
+		return this.detect;
 	}
 	
 	public int getCoverredNodeCount(){
